@@ -1,0 +1,147 @@
+COMPANY CONTACTS DIRECTORY
+==========================
+Last updated: March 2026
+
+
+MANAGEMENT
+
+Name: Elena Voss
+Title: Chief Executive Officer
+Department: Executive
+Email: e.voss@emmatech.nl
+Phone: +31 6 10 23 45 67
+Office: Amsterdam HQ, Floor 5
+
+Name: Marco Delgado
+Title: Chief Technology Officer
+Department: Executive
+Email: m.delgado@emmatech.nl
+Phone: +31 6 10 23 45 68
+Office: Amsterdam HQ, Floor 5
+
+Name: Petra Janssen
+Title: Chief Financial Officer
+Department: Executive
+Email: p.janssen@emmatech.nl
+Phone: +31 6 10 23 45 69
+Office: Amsterdam HQ, Floor 4
+
+
+HUMAN RESOURCES
+
+Name: Sofia Brandt
+Title: HR Director
+Department: Human Resources
+Email: s.brandt@emmatech.nl
+Phone: +31 6 20 34 56 78
+Office: Amsterdam HQ, Floor 2
+
+Name: Luuk van den Berg
+Title: HR Specialist
+Department: Human Resources
+Email: l.vandenberg@emmatech.nl
+Phone: +31 6 20 34 56 79
+Office: Amsterdam HQ, Floor 2
+
+Name: Aisha Okonkwo
+Title: Recruitment Manager
+Department: Human Resources
+Email: a.okonkwo@emmatech.nl
+Phone: +31 6 20 34 56 80
+Office: Amsterdam HQ, Floor 2
+
+
+ENGINEERING
+
+Name: Dimitri Kowalski
+Title: Lead Backend Engineer
+Department: Engineering
+Email: d.kowalski@emmatech.nl
+Phone: +31 6 30 45 67 89
+Office: Amsterdam HQ, Floor 3
+
+Name: Yuki Tanaka
+Title: Frontend Engineer
+Department: Engineering
+Email: y.tanaka@emmatech.nl
+Phone: +31 6 30 45 67 90
+Office: Amsterdam HQ, Floor 3
+
+Name: Ravi Nair
+Title: DevOps Engineer
+Department: Engineering
+Email: r.nair@emmatech.nl
+Phone: +31 6 30 45 67 91
+Office: Amsterdam HQ, Floor 3
+
+Name: Clara Nightwell
+Title: AI Engineer
+Department: Engineering
+Email: c.nightwell@emmatech.nl
+Phone: +31 6 30 45 67 92
+Office: Amsterdam HQ, Floor 3
+
+
+SALES
+
+Name: Thomas Eriksen
+Title: Sales Director
+Department: Sales
+Email: t.eriksen@emmatech.nl
+Phone: +31 6 40 56 78 90
+Office: Rotterdam Branch, Floor 1
+
+Name: Isabel Ferreira
+Title: Account Manager
+Department: Sales
+Email: i.ferreira@emmatech.nl
+Phone: +31 6 40 56 78 91
+Office: Rotterdam Branch, Floor 1
+
+Name: Ben Hartman
+Title: Sales Representative
+Department: Sales
+Email: b.hartman@emmatech.nl
+Phone: +31 6 40 56 78 92
+Office: Rotterdam Branch, Floor 1
+
+
+FINANCE
+
+Name: Nora Lindqvist
+Title: Finance Manager
+Department: Finance
+Email: n.lindqvist@emmatech.nl
+Phone: +31 6 50 67 89 01
+Office: Amsterdam HQ, Floor 4
+
+Name: Oscar Meijer
+Title: Accountant
+Department: Finance
+Email: o.meijer@emmatech.nl
+Phone: +31 6 50 67 89 02
+Office: Amsterdam HQ, Floor 4
+
+
+SUPPORT
+
+Name: Fatima El Amrani
+Title: Support Lead
+Department: Customer Support
+Email: f.elamrani@emmatech.nl
+Phone: +31 6 60 78 90 12
+Office: Amsterdam HQ, Floor 1
+
+Name: Jakub Novak
+Title: Support Specialist
+Department: Customer Support
+Email: j.novak@emmatech.nl
+Phone: +31 6 60 78 90 13
+Office: Amsterdam HQ, Floor 1
+
+Name: Priya Sharma
+Title: Support Specialist
+Department: Customer Support
+Email: p.sharma@emmatech.nl
+Phone: +31 6 60 78 90 14
+Office: Amsterdam HQ, Floor 1

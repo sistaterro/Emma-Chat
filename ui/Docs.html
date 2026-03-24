@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emma Chat · Documentation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --bg2: #ebebed;
+      --surface: #ffffff;
+      --border: rgba(0, 0, 0, 0.08);
+      --border2: rgba(0, 0, 0, 0.12);
+      --blue: #0071e3;
+      --blue-light: #e8f1fb;
+      --blue-mid: rgba(0, 113, 227, 0.12);
+      --blue-dim: rgba(0, 113, 227, 0.5);
+      --text: #1d1d1f;
+      --text2: #424245;
+      --text3: #86868b;
+      --text4: #aeaeb2;
+      --green: #34c759;
+      --orange: #ff9500;
+      --red: #ff3b30;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
+      --blur: blur(20px);
+      --sidebar-w: 260px;
+      --content-w: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LAYOUT ── */
+    #app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.72);
+      border-right: 1px solid var(--border);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* ── HAL EYE ── */
+    .hal-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 20px 18px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 9px;
+    }
+
+    .hal-eye {
+      position: relative;
+      width: 48px;
+      height: 48px;
+    }
+
+    .hal-eye .ring {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 113, 227, 0.15);
+      animation: halRing 4s ease-in-out infinite;
+    }
+
+    .hal-eye .ring2 {
+      position: absolute; inset: 7px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 113, 227, 0.08);
+      animation: halRing 4s ease-in-out infinite 0.8s;
+    }
+
+    .hal-eye .lens {
+      position: absolute; inset: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #5eaeff 0%, #0071e3 35%, #0051a8 70%, #003070 100%);
+      animation: halBreath 4s ease-in-out infinite;
+      box-shadow: 0 0 12px rgba(0,113,227,0.35), 0 0 28px rgba(0,113,227,0.15);
+    }
+
+    .hal-eye .lens::after {
+      content: '';
+      position: absolute;
+      top: 15%; left: 18%;
+      width: 30%; height: 22%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.55), transparent);
+      border-radius: 50%;
+    }
+
+    @keyframes halBreath {
+      0%, 100% { box-shadow: 0 0 10px rgba(0,113,227,0.3), 0 0 24px rgba(0,113,227,0.12); transform: scale(1); }
+      50%       { box-shadow: 0 0 20px rgba(0,113,227,0.55), 0 0 48px rgba(0,113,227,0.22); transform: scale(1.07); }
+    }
+
+    @keyframes halRing {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50%       { opacity: 1; transform: scale(1.06); }
+    }
+
+    .app-logo {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.2px;
+      text-align: center;
+    }
+
+    .app-logo span { color: var(--blue); }
+
+    .hal-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      color: var(--text4);
+      animation: halBreath 4s ease-in-out infinite;
+    }
+
+    /* ── NAV ── */
+    .nav-section {
+      padding: 12px 8px;
+      flex: 1;
+    }
+
+    .nav-group-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      color: var(--text3);
+      padding: 8px 10px 4px;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text2);
+      font-size: 13px;
+      text-decoration: none;
+      transition: background 0.12s, color 0.12s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover { background: var(--bg2); color: var(--text); }
+    .nav-item.active { background: var(--blue-light); color: var(--blue); font-weight: 500; }
+
+    .sidebar-footer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text4);
+    }
+
+    /* ── MAIN ── */
+    #main {
+      padding: 48px 56px;
+      max-width: calc(var(--content-w) + 112px);
+    }
+
+    /* ── HERO ── */
+    .hero {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 48px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-eye {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      flex-shrink: 0;
+    }
+
+    .hero-eye .ring {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(0,113,227,0.12);
+      animation: halRing 5s ease-in-out infinite;
+    }
+
+    .hero-eye .ring2 {
+      position: absolute; inset: 9px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,113,227,0.07);
+      animation: halRing 5s ease-in-out infinite 1s;
+    }
+
+    .hero-eye .lens {
+      position: absolute; inset: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #5eaeff 0%, #0071e3 35%, #0051a8 65%, #002e6e 100%);
+      animation: halBreath 5s ease-in-out infinite;
+      box-shadow: 0 0 18px rgba(0,113,227,0.4), 0 0 44px rgba(0,113,227,0.18);
+    }
+
+    .hero-eye .lens::after {
+      content: '';
+      position: absolute;
+      top: 15%; left: 18%;
+      width: 30%; height: 22%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.55), transparent);
+      border-radius: 50%;
+    }
+
+    .hero-text h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .hero-text h1 span { color: var(--blue); }
+
+    .hero-text p {
+      font-size: 15px;
+      color: var(--text3);
+      max-width: 480px;
+    }
+
+    /* ── SECTIONS ── */
+    .doc-section {
+      margin-bottom: 56px;
+      scroll-margin-top: 24px;
+    }
+
+    .doc-section h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .doc-section .section-sub {
+      font-size: 14px;
+      color: var(--text3);
+      margin-bottom: 24px;
+    }
+
+    .doc-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 24px 0 10px;
+    }
+
+    .doc-section p {
+      color: var(--text2);
+      margin-bottom: 14px;
+    }
+
+    /* ── CARDS ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-icon { font-size: 20px; margin-bottom: 10px; display: block; }
+    .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .card-desc { font-size: 13px; color: var(--text3); line-height: 1.55; }
+
+    /* ── CODE BLOCKS ── */
+    pre {
+      background: var(--text);
+      color: #f0f0f0;
+      border-radius: var(--radius-sm);
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 12px 0 20px;
+      box-shadow: var(--shadow);
+    }
+
+    code {
+      font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 13px;
+      background: var(--blue-light);
+      border: 1px solid rgba(0,113,227,0.12);
+      padding: 1px 7px;
+      border-radius: 5px;
+      color: var(--blue);
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    /* ── TAGS ── */
+    .tag-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .tag-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tag-badge {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .tag-rag   { background: #e6f9ed; color: #1a7a3a; border: 1px solid rgba(52,199,89,0.2); }
+    .tag-drift { background: #fff3e0; color: #b05000; border: 1px solid rgba(255,149,0,0.2); }
+    .tag-noinfo { background: #f5f5f7; color: var(--text3); border: 1px solid var(--border2); }
+
+    .tag-desc { font-size: 13px; color: var(--text2); line-height: 1.55; }
+
+    /* ── FLOW ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 16px 0;
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      position: relative;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 40px;
+      width: 2px;
+      height: calc(100% - 8px);
+      background: var(--border2);
+    }
+
+    .flow-num {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      border: 1px solid rgba(0,113,227,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .flow-content {
+      padding: 8px 0 24px;
+    }
+
+    .flow-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .flow-desc  { font-size: 13px; color: var(--text3); }
+
+    /* ── FUNCTION TABLE ── */
+    .fn-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 13px;
+    }
+
+    .fn-table th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--bg2);
+      color: var(--text3);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .fn-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+    .fn-table th:last-child  { border-radius: 0 var(--radius-sm) 0 0; }
+
+    .fn-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      color: var(--text2);
+    }
+
+    .fn-table tr:last-child td { border-bottom: none; }
+    .fn-table tr:hover td { background: var(--bg); }
+
+    .fn-table td:first-child {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      color: var(--blue);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .fn-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── ENDPOINT BADGE ── */
+    .endpoint {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      margin: 6px 0 14px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .method {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .method-get    { background: #e6f9ed; color: #1a7a3a; }
+    .method-post   { background: var(--blue-light); color: var(--blue); }
+    .method-delete { background: #fff0ef; color: var(--red); }
+
+    .endpoint-path {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 40px 0;
+    }
+
+    /* ── CALLOUT ── */
+    .callout {
+      background: var(--blue-light);
+      border: 1px solid rgba(0,113,227,0.15);
+      border-left: 3px solid var(--blue);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .callout strong { color: var(--blue); }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="hal-wrap">
+      <div class="hal-eye">
+        <div class="ring"></div>
+        <div class="ring2"></div>
+        <div class="lens"></div>
+      </div>
+      <div class="app-logo">Chat <span>Emma</span></div>
+      <div class="hal-label">Documentation</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-group-label">Getting Started</div>
+      <a class="nav-item" href="#overview">Overview</a>
+      <a class="nav-item" href="#installation">Installation</a>
+      <a class="nav-item" href="#running">Running Emma</a>
+
+      <div class="nav-group-label" style="margin-top:8px">Architecture</div>
+      <a class="nav-item" href="#how-rag-works">How RAG works</a>
+      <a class="nav-item" href="#response-tags">Response tags</a>
+      <a class="nav-item" href="#server">Server pipeline</a>
+
+      <div class="nav-group-label" style="margin-top:8px">Reference</div>
+      <a class="nav-item" href="#endpoints">API endpoints</a>
+      <a class="nav-item" href="#functions">Function reference</a>
+      <a class="nav-item" href="#documents">Managing documents</a>
+      <a class="nav-item" href="#privacy">Privacy</a>
+    </div>
+
+    <div class="sidebar-footer">Emma v1.0 · MIT License</div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-eye">
+        <div class="ring"></div>
+        <div class="ring2"></div>
+        <div class="lens"></div>
+      </div>
+      <div class="hero-text">
+        <h1>Chat <span>Emma</span> Docs</h1>
+        <p>Private local AI with RAG. Your documents, your server, your rules. No data leaves your machine.</p>
+      </div>
+    </div>
+
+
+    <!-- OVERVIEW -->
+    <div class="doc-section" id="overview">
+      <h2>Overview</h2>
+      <p class="section-sub">What Emma is and what it does</p>
+
+      <p>Emma is a fully local AI chat system built on RAG — Retrieval-Augmented Generation. It lets you upload text documents and ask questions about them. The model answers using your documents as the source of truth, not its training data.</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <span class="card-icon">🔒</span>
+          <div class="card-title">Fully private</div>
+          <div class="card-desc">All inference runs locally via Ollama. No API keys. No external calls. No telemetry.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📄</span>
+          <div class="card-title">Document-grounded</div>
+          <div class="card-desc">Every answer is sourced from your documents. The model doesn't make things up from training data.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔍</span>
+          <div class="card-title">Semantic search</div>
+          <div class="card-desc">Finds relevant content by meaning, not keyword matching. Works across languages.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🏷️</span>
+          <div class="card-title">Auditable responses</div>
+          <div class="card-desc">Every response is tagged [RAG], [DRIFT] or [NO INFO] so you always know the source.</div>
+        </div>
+      </div>
+
+      <h3>Stack</h3>
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr><th>Component</th><th>Technology</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>LLM inference</td><td>Ollama</td><td>Runs language models locally</td></tr>
+            <tr><td>Embeddings</td><td>sentence-transformers</td><td>Semantic search across documents</td></tr>
+            <tr><td>Backend</td><td>FastAPI</td><td>RAG pipeline and API server</td></tr>
+            <tr><td>Frontend</td><td>Vanilla HTML/CSS/JS</td><td>Three chat interfaces + document manager</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- INSTALLATION -->
+    <div class="doc-section" id="installation">
+      <h2>Installation</h2>
+      <p class="section-sub">Get Emma running in a few minutes</p>
+
+      <h3>1. Install Ollama</h3>
+      <p>Download and install Ollama from <strong>ollama.com/download</strong>. Then pull a language model:</p>
+      <pre><code>ollama pull qwen2.5:7b</code></pre>
+      <p>Verify it works:</p>
+      <pre><code>ollama run qwen2.5:7b</code></pre>
+
+      <h3>2. Other recommended models</h3>
+      <pre><code>ollama pull mistral:7b      # Best for following format instructions
+ollama pull llama3.2        # Lightweight, good instruction following
+ollama pull deepseek-r1     # Slower but more precise reasoning</code></pre>
+
+      <h3>3. Clone and install</h3>
+      <pre><code>git clone https://github.com/yourusername/Emma-Chat.git
+cd Emma-Chat
+
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# Mac / Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt</code></pre>
+
+      <div class="callout"><strong>Note:</strong> The first run downloads the multilingual embedding model (~120MB). This happens automatically and only once, then stays cached locally.</div>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- RUNNING -->
+    <div class="doc-section" id="running">
+      <h2>Running Emma</h2>
+      <p class="section-sub">Two servers, one command</p>
+
+      <h3>Windows</h3>
+      <pre><code>run.bat</code></pre>
+
+      <h3>Mac / Linux</h3>
+      <pre><code>source .venv/bin/activate
+uvicorn server:app --reload --port 8000 &
+cd ui && python -m http.server 5500</code></pre>
+
+      <p>Then open <code>http://localhost:5500</code> in your browser.</p>
+
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr><th>Port</th><th>What runs there</th></tr></thead>
+          <tbody>
+            <tr><td>:8000</td><td>FastAPI backend — RAG pipeline, file management, chat API</td></tr>
+            <tr><td>:5500</td><td>Static file server — serves all HTML interfaces</td></tr>
+            <tr><td>:11434</td><td>Ollama — LLM inference (started separately)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- HOW RAG WORKS -->
+    <div class="doc-section" id="how-rag-works">
+      <h2>How RAG works</h2>
+      <p class="section-sub">Retrieval-Augmented Generation from scratch</p>
+
+      <p>RAG grounds the model's answers in your documents instead of its training data. Think of it like OOP inheritance — the document context (the child) overrides the model's general knowledge (the parent).</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <div class="flow-title">Routing</div>
+            <div class="flow-desc">The LLM reads the list of available files with their auto-generated descriptions and decides which one is most relevant to the question.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <div class="flow-title">Semantic retrieval</div>
+            <div class="flow-desc">The question is converted to a vector (embedding) and compared against all chunk vectors using cosine similarity. The top 5 most semantically similar chunks are selected.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <div class="flow-title">Augmentation</div>
+            <div class="flow-desc">The selected chunks are injected into the prompt as context, along with strict rules about how to answer and which tag to use.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <div class="flow-title">Generation</div>
+            <div class="flow-desc">The model answers using only the provided context. The server validates and corrects the response tag before sending it to the frontend.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Document indexing pipeline</h3>
+      <p>When a file is uploaded, the server runs this pipeline automatically in the background:</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <div class="flow-title">Chunking</div>
+            <div class="flow-desc">The document is split into paragraphs. Short paragraphs are merged until each chunk reaches a minimum of 40 words. Low-quality chunks (repeated lines, image references, digit-heavy content) are discarded.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <div class="flow-title">Embedding</div>
+            <div class="flow-desc">Each chunk is converted to a 384-dimensional vector using <code>paraphrase-multilingual-MiniLM-L12-v2</code>. Vectors are saved as a <code>.npy</code> file alongside the JSON index.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <div class="flow-title">Description generation</div>
+            <div class="flow-desc">The LLM reads the first 2000 characters and generates a one-sentence description. This is stored in <code>files_index.json</code> and used by the router to match questions to documents.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- RESPONSE TAGS -->
+    <div class="doc-section" id="response-tags">
+      <h2>Response tags</h2>
+      <p class="section-sub">Every answer tells you where it came from</p>
+
+      <p>Emma prefixes every response with a tag indicating the source of the answer. The server validates and corrects the tag if the model gets it wrong.</p>
+
+      <div class="tag-row">
+        <div class="tag-item">
+          <span class="tag-badge tag-rag">[RAG]</span>
+          <div class="tag-desc">The answer is fully supported by the document context. The model used only your files to answer.</div>
+        </div>
+        <div class="tag-item">
+          <span class="tag-badge tag-drift">[DRIFT]</span>
+          <div class="tag-desc">The context existed but was insufficient. The model supplemented with its own training knowledge. Treat this answer with more caution.</div>
+        </div>
+        <div class="tag-item">
+          <span class="tag-badge tag-noinfo">[NO INFO]</span>
+          <div class="tag-desc">The question has no relation to any available document. The model answered from its own knowledge base.</div>
+        </div>
+      </div>
+
+      <div class="callout"><strong>Tip:</strong> If you see too many [DRIFT] responses, try increasing <code>TOP_K_CHUNKS</code> in <code>server.py</code> to retrieve more context per query.</div>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- SERVER PIPELINE -->
+    <div class="doc-section" id="server">
+      <h2>Server pipeline</h2>
+      <p class="section-sub">What each part of server.py does</p>
+
+      <h3>Configuration</h3>
+      <p>Top-level constants you can change:</p>
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr><th>Constant</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>TOP_K_CHUNKS</td><td>5</td><td>Number of chunks retrieved per query</td></tr>
+            <tr><td>EMBED_MODEL_NAME</td><td>paraphrase-multilingual-MiniLM-L12-v2</td><td>Embedding model — multilingual, ~120MB</td></tr>
+            <tr><td>FILES_DIR</td><td>files/</td><td>Where uploaded .txt documents are stored</td></tr>
+            <tr><td>CHUNKS_DIR</td><td>chunks/</td><td>Where JSON indexes and .npy embeddings live</td></tr>
+            <tr><td>FILES_INDEX</td><td>files_index.json</td><td>Auto-generated document descriptions for routing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Chunking functions</h3>
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>is_quality_chunk()</td><td>Language-agnostic filter. Discards chunks with too few unique words, repeated lines, high digit density, or duplicated halves.</td></tr>
+            <tr><td>chunk_text()</td><td>Splits document by double newlines. Merges short paragraphs until minimum word count is reached. Applies quality filter before saving.</td></tr>
+            <tr><td>generate_description()</td><td>Sends first 2000 chars to LLM, returns a one-sentence description of the document.</td></tr>
+            <tr><td>save_description()</td><td>Writes description to files_index.json. Never overwrites manually-set descriptions.</td></tr>
+            <tr><td>process_file()</td><td>Full ingestion pipeline: chunk → embed → save JSON + NPY → generate description.</td></tr>
+            <tr><td>sync_files()</td><td>Runs at startup. Processes any files in files/ that don't have a corresponding index yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>RAG functions</h3>
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>cosine_similarity()</td><td>Computes dot product between normalized vectors. Score of 1.0 = identical meaning, 0.0 = unrelated.</td></tr>
+            <tr><td>retrieve_chunks()</td><td>Vectorizes the question, computes similarity against all chunk vectors, returns top K.</td></tr>
+            <tr><td>route_to_file()</td><td>First LLM call. Given the file list with descriptions and the question, returns the most relevant file name or None.</td></tr>
+            <tr><td>build_rag_prompt()</td><td>Assembles the final prompt: rules + context chunks + question.</td></tr>
+            <tr><td>fix_tag()</td><td>If RAG is active and the model used the wrong tag, replaces it with [RAG] before sending to the frontend.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- API ENDPOINTS -->
+    <div class="doc-section" id="endpoints">
+      <h2>API endpoints</h2>
+      <p class="section-sub">All endpoints are served on port 8000</p>
+
+      <h3>Health check</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/health</span></div>
+      <p>Checks if Ollama is reachable. Returns status and list of available models. Used by the frontend to populate the model selector and show the connection indicator.</p>
+
+      <h3>List files</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files</span></div>
+      <p>Returns all documents in <code>files/</code> with their indexing status, chunk count, and description.</p>
+
+      <h3>Upload file</h3>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/upload</span></div>
+      <p>Accepts a <code>.txt</code> file via multipart form. Saves it to <code>files/</code> and triggers the full indexing pipeline in the background. Returns immediately without waiting for indexing to complete.</p>
+
+      <h3>Download file</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files/{stem}/download</span></div>
+      <p>Serves the original <code>.txt</code> file for download.</p>
+
+      <h3>Delete file</h3>
+      <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/files/{stem}</span></div>
+      <p>Removes all traces of a document: the <code>.txt</code>, the <code>.json</code> index, the <code>.npy</code> embeddings, and the entry in <code>files_index.json</code>.</p>
+
+      <h3>Chat</h3>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/chat</span></div>
+      <p>Main chat endpoint. Accepts a model name, message history, and stream flag. Runs the full RAG pipeline and streams the response back in <code>text/event-stream</code> format.</p>
+      <pre><code>{
+  "model": "mistral:7b",
+  "messages": [
+    { "role": "user", "content": "What is Baroque?" }
+  ],
+  "stream": true
+}</code></pre>
+      <p>Response format per chunk:</p>
+      <pre><code>data: {"text": "Baroque is...", "done": false}
+data: {"text": " a Western style", "done": false}
+data: {"text": "", "done": true}</code></pre>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- DOCUMENTS -->
+    <div class="doc-section" id="documents">
+      <h2>Managing documents</h2>
+      <p class="section-sub">Adding, updating and removing knowledge</p>
+
+      <h3>Adding a document</h3>
+      <p>Open <code>http://localhost:5500/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically — no restart needed.</p>
+
+      <div class="callout"><strong>Naming convention:</strong> Use underscores instead of spaces. <code>solar_panel.txt</code> not <code>solar panel.txt</code>. The upload endpoint sanitizes filenames automatically.</div>
+
+      <h3>Updating a document</h3>
+      <p>Delete the existing file from the upload page, then re-upload the updated version. The system re-indexes it completely.</p>
+
+      <h3>Manual descriptions</h3>
+      <p>The LLM generates descriptions automatically, but you can edit <code>files_index.json</code> manually. The server never overwrites existing descriptions — only fills in missing ones.</p>
+      <pre><code>{
+  "baroque": "Wikipedia article about the Baroque artistic style, 17th-18th centuries",
+  "contacts": "Company employee directory with phone numbers, emails and departments",
+  "solar_panel": "Technical documentation about photovoltaic solar panel systems"
+}</code></pre>
+
+      <h3>File structure after indexing</h3>
+      <pre><code>files/
+  baroque.txt          ← original document
+chunks/
+  baroque.json         ← chunk index with text
+  baroque.npy          ← embedding vectors
+files_index.json       ← routing descriptions</code></pre>
+    </div>
+
+    <div class="divider"></div>
+
+
+    <!-- PRIVACY -->
+    <div class="doc-section" id="privacy">
+      <h2>Privacy</h2>
+      <p class="section-sub">What stays local and what doesn't</p>
+
+      <p>Emma was designed from the start for use with sensitive data. The architecture ensures nothing leaves your machine:</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <span class="card-icon">🖥️</span>
+          <div class="card-title">LLM inference</div>
+          <div class="card-desc">All model inference runs via Ollama on your local machine. No requests to OpenAI, Anthropic, or any external API.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📐</span>
+          <div class="card-title">Embeddings</div>
+          <div class="card-desc">The sentence-transformers model runs locally. Your document content is never sent anywhere to be vectorized.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📁</span>
+          <div class="card-title">Documents</div>
+          <div class="card-desc">All files stay in your local <code>files/</code> directory. The server only reads them — never uploads or transmits them.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📊</span>
+          <div class="card-title">No telemetry</div>
+          <div class="card-desc">No analytics, no usage tracking, no external calls of any kind. The server only talks to Ollama on localhost.</div>
+        </div>
+      </div>
+
+      <div class="callout"><strong>Good for:</strong> internal company documents, employee contacts, legal contracts, medical records, financial data, proprietary technical documentation — anything you wouldn't want on an external server.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Active nav item on scroll
+  const sections = document.querySelectorAll('.doc-section');
+  const navItems = document.querySelectorAll('.nav-item');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + entry.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

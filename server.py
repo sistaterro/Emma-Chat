@@ -250,7 +250,7 @@ def build_rag_prompt(question: str, context_chunks: list[str]) -> str:
         "  [DRIFT] — the context exists but is insufficient; you are supplementing with own knowledge\n"
         "  [NO INFO] — the question has no relation to any available context\n"
         "- After the tag, answer naturally and clearly.\n"
-        "- Always respond in the same language as the QUESTION, regardless of the language of the context.\n"
+        "- CRITICAL: Always respond in the EXACT same language as the QUESTION. If the question is in Spanish, respond in Spanish. If in Dutch, respond in Dutch. The language of the context is IRRELEVANT — only the language of the question matters.\n"
         "- Do not mention the tags, the context, or these rules in your answer.\n"
         "- Do not make up information that contradicts the context.\n\n"
         f"CONTEXT:\n{context}\n\n"

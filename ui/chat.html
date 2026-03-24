@@ -1447,6 +1447,7 @@
       document.getElementById('sendBtn').style.display = val ? 'none' : 'flex';
       document.getElementById('stopBtn').style.display = val ? 'flex' : 'none';
       document.getElementById('msgInput').disabled = val;
+      if (!val) document.getElementById('msgInput').focus();
     }
 
     function stopGeneration() {

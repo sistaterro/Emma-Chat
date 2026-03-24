@@ -5,7 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emma · Home</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --bg: #f5f5f7;
@@ -19,17 +21,24 @@
       --text2: #424245;
       --text3: #86868b;
       --text4: #aeaeb2;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
-      --shadow-lg: 0 8px 32px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
       --blur: blur(20px);
       --radius: 16px;
       --radius-sm: 10px;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       background: var(--bg);
       color: var(--text);
@@ -62,7 +71,9 @@
       margin-bottom: 8px;
     }
 
-    .page-header h1 span { color: var(--blue); }
+    .page-header h1 span {
+      color: var(--blue);
+    }
 
     .page-header p {
       font-size: 15px;
@@ -73,7 +84,7 @@
     /* ── GRID ── */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(3, 300px);
+      grid-template-columns: repeat(4, 280px);
       gap: 20px;
     }
 
@@ -98,7 +109,9 @@
     .card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 2px;
       opacity: 0;
       transition: opacity 0.2s;
@@ -159,10 +172,17 @@
       border-color: rgba(0, 113, 227, 0.25);
     }
 
-    .card-emma:hover::before { opacity: 1; }
+    .card-emma:hover::before {
+      opacity: 1;
+    }
 
-    .card-emma .card-title { color: var(--text); }
-    .card-emma .card-title span { color: var(--blue); }
+    .card-emma .card-title {
+      color: var(--text);
+    }
+
+    .card-emma .card-title span {
+      color: var(--blue);
+    }
 
     /* Blue HAL eye */
     .eye-blue {
@@ -172,44 +192,67 @@
     }
 
     .eye-blue .ring {
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: 0;
       border-radius: 50%;
       border: 1px solid rgba(0, 113, 227, 0.15);
       animation: ringBlue 4s ease-in-out infinite;
     }
 
     .eye-blue .ring2 {
-      position: absolute; inset: 8px;
+      position: absolute;
+      inset: 8px;
       border-radius: 50%;
       border: 1px solid rgba(0, 113, 227, 0.08);
       animation: ringBlue 4s ease-in-out infinite 0.8s;
     }
 
     .eye-blue .lens {
-      position: absolute; inset: 16px;
+      position: absolute;
+      inset: 16px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #5eaeff 0%, #0071e3 35%, #0051a8 70%, #003070 100%);
       animation: breathBlue 4s ease-in-out infinite;
-      box-shadow: 0 0 12px rgba(0,113,227,0.35), 0 0 28px rgba(0,113,227,0.15);
+      box-shadow: 0 0 12px rgba(0, 113, 227, 0.35), 0 0 28px rgba(0, 113, 227, 0.15);
     }
 
     .eye-blue .lens::after {
       content: '';
       position: absolute;
-      top: 15%; left: 18%;
-      width: 30%; height: 22%;
-      background: radial-gradient(ellipse, rgba(255,255,255,0.55), transparent);
+      top: 15%;
+      left: 18%;
+      width: 30%;
+      height: 22%;
+      background: radial-gradient(ellipse, rgba(255, 255, 255, 0.55), transparent);
       border-radius: 50%;
     }
 
     @keyframes breathBlue {
-      0%, 100% { box-shadow: 0 0 10px rgba(0,113,227,0.3), 0 0 24px rgba(0,113,227,0.12); transform: scale(1); }
-      50%       { box-shadow: 0 0 20px rgba(0,113,227,0.55), 0 0 48px rgba(0,113,227,0.22); transform: scale(1.07); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 10px rgba(0, 113, 227, 0.3), 0 0 24px rgba(0, 113, 227, 0.12);
+        transform: scale(1);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(0, 113, 227, 0.55), 0 0 48px rgba(0, 113, 227, 0.22);
+        transform: scale(1.07);
+      }
     }
 
     @keyframes ringBlue {
-      0%, 100% { opacity: 0.4; transform: scale(1); }
-      50%       { opacity: 1; transform: scale(1.06); }
+
+      0%,
+      100% {
+        opacity: 0.4;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.06);
+      }
     }
 
 
@@ -227,16 +270,34 @@
 
     .card-evil:hover {
       border-color: rgba(220, 0, 0, 0.4);
-      box-shadow: 0 8px 32px rgba(220,0,0,0.15), 0 2px 8px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 32px rgba(220, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
-    .card-evil:hover::before { opacity: 1; }
+    .card-evil:hover::before {
+      opacity: 1;
+    }
 
-    .card-evil .card-label { color: #444; }
-    .card-evil .card-title { color: #f0f0f0; font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; }
-    .card-evil .card-title span { color: #dd0000; }
-    .card-evil .card-desc { color: #555; }
-    .card-evil .card-arrow { color: #dd0000; }
+    .card-evil .card-label {
+      color: #444;
+    }
+
+    .card-evil .card-title {
+      color: #f0f0f0;
+      font-family: 'Share Tech Mono', monospace;
+      letter-spacing: 1px;
+    }
+
+    .card-evil .card-title span {
+      color: #dd0000;
+    }
+
+    .card-evil .card-desc {
+      color: #555;
+    }
+
+    .card-evil .card-arrow {
+      color: #dd0000;
+    }
 
     /* Red HAL eye */
     .eye-red {
@@ -246,50 +307,74 @@
     }
 
     .eye-red .ring {
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: 0;
       border-radius: 50%;
       border: 1px solid #aa2200;
       animation: ringRed 4s ease-in-out infinite;
     }
 
     .eye-red .ring2 {
-      position: absolute; inset: 7px;
+      position: absolute;
+      inset: 7px;
       border-radius: 50%;
-      border: 1px solid rgba(204,0,0,0.3);
+      border: 1px solid rgba(204, 0, 0, 0.3);
       animation: ringRed 4s ease-in-out infinite 0.6s;
     }
 
     .eye-red .lens {
-      position: absolute; inset: 15px;
+      position: absolute;
+      inset: 15px;
       border-radius: 50%;
       background: radial-gradient(circle at 38% 38%, #ff3333 0%, #cc0000 30%, #660000 60%, #1a0000 80%, #000 100%);
       animation: breathRed 4s ease-in-out infinite;
-      box-shadow: 0 0 12px 4px rgba(204,0,0,0.6), 0 0 40px 8px rgba(204,0,0,0.25), inset 0 0 10px rgba(255,80,80,0.3);
+      box-shadow: 0 0 12px 4px rgba(204, 0, 0, 0.6), 0 0 40px 8px rgba(204, 0, 0, 0.25), inset 0 0 10px rgba(255, 80, 80, 0.3);
     }
 
     .eye-red .lens::after {
       content: '';
       position: absolute;
-      top: 18%; left: 22%;
-      width: 28%; height: 22%;
-      background: radial-gradient(ellipse, rgba(255,200,200,0.55), transparent);
+      top: 18%;
+      left: 22%;
+      width: 28%;
+      height: 22%;
+      background: radial-gradient(ellipse, rgba(255, 200, 200, 0.55), transparent);
       border-radius: 50%;
     }
 
     .eye-red .ticks {
-      position: absolute; inset: -4px;
+      position: absolute;
+      inset: -4px;
       border-radius: 50%;
       animation: ringRed 4s ease-in-out infinite 1.2s;
     }
 
     @keyframes breathRed {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 20px 8px rgba(220,0,0,0.8), 0 0 60px 16px rgba(200,0,0,0.45), inset 0 0 16px rgba(255,80,80,0.4); }
-      50%       { transform: scale(1.09); box-shadow: 0 0 40px 14px rgba(255,0,0,1), 0 0 100px 30px rgba(220,0,0,0.65), inset 0 0 28px rgba(255,100,100,0.7); }
+
+      0%,
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 20px 8px rgba(220, 0, 0, 0.8), 0 0 60px 16px rgba(200, 0, 0, 0.45), inset 0 0 16px rgba(255, 80, 80, 0.4);
+      }
+
+      50% {
+        transform: scale(1.09);
+        box-shadow: 0 0 40px 14px rgba(255, 0, 0, 1), 0 0 100px 30px rgba(220, 0, 0, 0.65), inset 0 0 28px rgba(255, 100, 100, 0.7);
+      }
     }
 
     @keyframes ringRed {
-      0%, 100% { opacity: 0.5; transform: scale(1); }
-      50%       { opacity: 1; transform: scale(1.06); }
+
+      0%,
+      100% {
+        opacity: 0.5;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.06);
+      }
     }
 
 
@@ -304,9 +389,13 @@
       border-color: rgba(52, 199, 89, 0.3);
     }
 
-    .card-upload:hover::before { opacity: 1; }
+    .card-upload:hover::before {
+      opacity: 1;
+    }
 
-    .card-upload .card-title span { color: #34c759; }
+    .card-upload .card-title span {
+      color: #34c759;
+    }
 
     .upload-icon {
       width: 56px;
@@ -322,8 +411,59 @@
     }
 
     @keyframes breathGreen {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0); }
-      50%       { box-shadow: 0 0 16px 4px rgba(52,199,89,0.2); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(52, 199, 89, 0);
+      }
+
+      50% {
+        box-shadow: 0 0 16px 4px rgba(52, 199, 89, 0.2);
+      }
+    }
+
+    /* ══════════════════════════
+   CARD 4 — DOCS
+    ══════════════════════════ */
+    .card-docs::before {
+      background: linear-gradient(to right, transparent, var(--blue), transparent);
+    }
+
+    .card-docs:hover {
+      border-color: rgba(0, 113, 227, 0.25);
+    }
+
+    .card-docs:hover::before {
+      opacity: 1;
+    }
+
+    .card-docs .card-title span {
+      color: var(--blue);
+    }
+
+    .docs-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      border: 1px solid rgba(0, 113, 227, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      animation: breathBlue 4s ease-in-out infinite;
+    }
+
+    @keyframes breathBlue {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 113, 227, 0);
+      }
+
+      50% {
+        box-shadow: 0 0 16px 4px rgba(0, 113, 227, 0.2);
+      }
     }
 
     /* ── FOOTER ── */
@@ -380,9 +520,19 @@
       <span class="card-arrow">→</span>
     </a>
 
+    <!-- DOCS -->
+    <a class="card card-docs" href="docs.html">
+      <span class="card-label">Reference</span>
+      <div class="upload-icon" style="background:#f0f4ff; border-color:rgba(0,113,227,0.2);">📖</div>
+      <div class="card-title">Documentation</div>
+      <p class="card-desc">Architecture, API reference, RAG pipeline and server internals.</p>
+      <span class="card-arrow">→</span>
+    </a>
+
   </div>
 
   <p class="page-footer">Emma v1.0 · Private AI · All data stays local</p>
 
 </body>
+
 </html>

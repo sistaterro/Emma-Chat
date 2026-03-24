@@ -2,7 +2,11 @@
 
 A fully local, private AI chat system with Retrieval-Augmented Generation (RAG). Upload your own documents and chat with them — no data ever leaves your machine.
 
-![Emma](ui/index.html)
+![Home](assets/home.png)
+
+![Chat Emma](assets/chat_emma.png)
+
+![Upload](assets/uploads.png)
 
 ---
 
@@ -201,6 +205,18 @@ sentence-transformers
 numpy
 python-multipart
 ```
+
+---
+
+## Evil Emma
+
+![Evil Emma](assets/evil_emma.png)
+
+> ⚠️ **NSFW warning — just a visual joke.**
+
+Evil Emma (`chat_evil_emma.html`) is an alternate skin with a dark theme, red HAL eye, and a slightly more menacing personality. It is **purely cosmetic** — same model, same RAG pipeline, same functionality. Not a single line of backend code changes.
+
+Think of it as the same AI wearing a villain costume for Halloween. The intelligence is identical. The vibe is not.
 
 ---
 

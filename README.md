@@ -19,6 +19,10 @@ Emma is a local AI assistant that can answer questions based on your own documen
 - **FastAPI** as the backend server
 - **RAG** (Retrieval-Augmented Generation) to ground answers in your documents
 
+It also includes:
+- **Upload-time inconsistency detection** to warn when a new RAG appears to conflict with the user's existing or global RAGs
+- **Multi-RAG routing** so comparative questions can use more than one relevant document at once
+
 Every response is tagged with its source:
 - `[RAG]` — answer is based on your documents
 - `[DRIFT]` — model supplemented with its own knowledge
@@ -139,8 +143,7 @@ emma-rag/
 ├── server.py           # FastAPI backend — RAG pipeline
 ├── run.bat             # Windows launcher
 ├── requirements.txt    # Python dependencies
-├── files_index.json    # Auto-generated document descriptions
-├── files/              # Your .txt documents go here
+├── files/              # User/global .txt documents
 ├── chunks/             # Auto-generated index (JSON + embeddings)
 └── ui/
     ├── index.html              # Homepage
@@ -159,9 +162,12 @@ emma-rag/
    - Chunks the document
    - Generates semantic embeddings
    - Creates a description using the LLM
+   - Checks the new file for likely inconsistencies against visible RAGs
    - Makes it available for RAG queries
 
 No restart required. Files are available immediately after indexing.
+
+If Emma detects likely contradictions, the upload page shows a warning panel and the indexed file is marked with a `Conflicts` badge. These warnings are persisted per document.
 
 ---
 
@@ -170,11 +176,11 @@ No restart required. Files are available immediately after indexing.
 ```
 User question
       ↓
-LLM decides which document is relevant (routing)
+LLM decides which document or documents are relevant (routing)
       ↓
-Semantic search finds the most relevant chunks (embeddings)
+Semantic search finds the most relevant chunks from each selected document (embeddings)
       ↓
-LLM answers using only that context (augmented generation)
+LLM answers using only that context, and can compare multiple RAGs when needed
       ↓
 Response tagged with [RAG] / [DRIFT] / [NO INFO]
 ```
@@ -191,6 +197,8 @@ Emma is designed for private use with sensitive data:
 - Embeddings are generated locally with sentence-transformers
 - Documents never leave your filesystem
 - No telemetry, no analytics, no external calls
+
+Inconsistency detection also runs locally through Ollama. By default Emma prefers `qwen2.5:7b` for this check; if that model is not installed, it falls back automatically to the lightest chat model available in your local Ollama setup.
 
 ---
 

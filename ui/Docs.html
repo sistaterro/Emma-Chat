@@ -696,21 +696,21 @@ cd ui && python -m http.server 5500</code></pre>
           <div class="flow-num">1</div>
           <div class="flow-content">
             <div class="flow-title">Routing</div>
-            <div class="flow-desc">The LLM reads the list of available files with their auto-generated descriptions and decides which one is most relevant to the question.</div>
+            <div class="flow-desc">The LLM reads the list of available files with their auto-generated descriptions and selects up to three documents that are genuinely useful for the question. Comparative questions can use more than one RAG at once.</div>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-num">2</div>
           <div class="flow-content">
             <div class="flow-title">Semantic retrieval</div>
-            <div class="flow-desc">The question is converted to a vector (embedding) and compared against all chunk vectors using cosine similarity. The top 5 most semantically similar chunks are selected.</div>
+            <div class="flow-desc">The question is converted to a vector (embedding) and compared against all chunk vectors using cosine similarity. The top chunks from each selected document are gathered and labeled by source before being sent to the model.</div>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-num">3</div>
           <div class="flow-content">
             <div class="flow-title">Augmentation</div>
-            <div class="flow-desc">The selected chunks are injected into the prompt as context, along with strict rules about how to answer and which tag to use.</div>
+            <div class="flow-desc">The selected chunks are injected into the prompt as source-tagged context, along with strict rules about how to answer, compare documents when needed, and which tag to use.</div>
           </div>
         </div>
         <div class="flow-step">
@@ -745,6 +745,13 @@ cd ui && python -m http.server 5500</code></pre>
           <div class="flow-content">
             <div class="flow-title">Description generation</div>
             <div class="flow-desc">The LLM reads the first 2000 characters and generates a one-sentence description. This is stored in <code>files_index.json</code> and used by the router to match questions to documents.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <div class="flow-title">Inconsistency check</div>
+            <div class="flow-desc">Before the upload completes, the server compares the new document against the user-visible RAGs. It uses embeddings to shortlist candidates and an LLM to flag likely contradictions such as conflicting percentages, dates, thresholds, or policy rules. Results are stored in <code>conflicts_index.json</code> and surfaced in the upload UI.</div>
           </div>
         </div>
       </div>
@@ -797,6 +804,8 @@ cd ui && python -m http.server 5500</code></pre>
             <tr><td>FILES_DIR</td><td>files/</td><td>Where uploaded .txt documents are stored</td></tr>
             <tr><td>CHUNKS_DIR</td><td>chunks/</td><td>Where JSON indexes and .npy embeddings live</td></tr>
             <tr><td>FILES_INDEX</td><td>files_index.json</td><td>Auto-generated document descriptions for routing</td></tr>
+            <tr><td>CONFLICTS_INDEX</td><td>conflicts_index.json</td><td>Persisted inconsistency warnings per document</td></tr>
+            <tr><td>INCONSISTENCY_MODEL</td><td>qwen2.5:7b</td><td>Preferred model for inconsistency detection. If missing, Emma falls back to the lightest chat model installed in Ollama.</td></tr>
           </tbody>
         </table>
       </div>
@@ -812,6 +821,7 @@ cd ui && python -m http.server 5500</code></pre>
             <tr><td>save_description()</td><td>Writes description to files_index.json. Never overwrites manually-set descriptions.</td></tr>
             <tr><td>process_file()</td><td>Full ingestion pipeline: chunk → embed → save JSON + NPY → generate description.</td></tr>
             <tr><td>sync_files()</td><td>Runs at startup. Processes any files in files/ that don't have a corresponding index yet.</td></tr>
+            <tr><td>detect_rag_inconsistencies()</td><td>Shortlists similar documents and asks an LLM to find likely contradictions before persisting warnings to conflicts_index.json.</td></tr>
           </tbody>
         </table>
       </div>
@@ -822,9 +832,9 @@ cd ui && python -m http.server 5500</code></pre>
           <thead><tr><th>Function</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td>cosine_similarity()</td><td>Computes dot product between normalized vectors. Score of 1.0 = identical meaning, 0.0 = unrelated.</td></tr>
-            <tr><td>retrieve_chunks()</td><td>Vectorizes the question, computes similarity against all chunk vectors, returns top K.</td></tr>
-            <tr><td>route_to_file()</td><td>First LLM call. Given the file list with descriptions and the question, returns the most relevant file name or None.</td></tr>
-            <tr><td>build_rag_prompt()</td><td>Assembles the final prompt: rules + context chunks + question.</td></tr>
+            <tr><td>retrieve_chunks()</td><td>Vectorizes the question, computes similarity against all chunk vectors, returns top K chunks per selected document.</td></tr>
+            <tr><td>route_to_files()</td><td>First LLM call. Given the file list with descriptions and the question, returns up to three relevant files instead of forcing a single document.</td></tr>
+            <tr><td>build_rag_prompt()</td><td>Assembles the final prompt with source-tagged chunks so the model can answer or compare across multiple RAGs.</td></tr>
             <tr><td>fix_tag()</td><td>If RAG is active and the model used the wrong tag, replaces it with [RAG] before sending to the frontend.</td></tr>
           </tbody>
         </table>
@@ -845,11 +855,11 @@ cd ui && python -m http.server 5500</code></pre>
 
       <h3>List files</h3>
       <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files</span></div>
-      <p>Returns all documents in <code>files/</code> with their indexing status, chunk count, and description.</p>
+      <p>Returns all documents in <code>files/</code> with their indexing status, chunk count, description, and any persisted inconsistency warnings.</p>
 
       <h3>Upload file</h3>
       <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/upload</span></div>
-      <p>Accepts a <code>.txt</code> file via multipart form. Saves it to <code>files/</code> and triggers the full indexing pipeline in the background. Returns immediately without waiting for indexing to complete.</p>
+      <p>Accepts a <code>.txt</code> file via multipart form. Saves it to <code>files/</code>, runs inconsistency detection against visible RAGs, persists any warnings, and triggers the indexing pipeline in the background.</p>
 
       <h3>Download file</h3>
       <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files/{stem}/download</span></div>
@@ -857,7 +867,7 @@ cd ui && python -m http.server 5500</code></pre>
 
       <h3>Delete file</h3>
       <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/files/{stem}</span></div>
-      <p>Removes all traces of a document: the <code>.txt</code>, the <code>.json</code> index, the <code>.npy</code> embeddings, and the entry in <code>files_index.json</code>.</p>
+      <p>Removes all traces of a document: the <code>.txt</code>, the <code>.json</code> index, the <code>.npy</code> embeddings, and the entries in <code>files_index.json</code> and <code>conflicts_index.json</code>.</p>
 
       <h3>Chat</h3>
       <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/chat</span></div>
@@ -885,6 +895,7 @@ data: {"text": "", "done": true}</code></pre>
 
       <h3>Adding a document</h3>
       <p>Open <code>http://localhost:5500/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically — no restart needed.</p>
+      <p>During upload, Emma also checks the new RAG against the user's own documents and the visible global documents. If it finds likely contradictions, the upload page shows a warning panel and the indexed file keeps a persisted <code>Conflicts</code> badge.</p>
 
       <div class="callout"><strong>Naming convention:</strong> Use underscores instead of spaces. <code>solar_panel.txt</code> not <code>solar panel.txt</code>. The upload endpoint sanitizes filenames automatically.</div>
 
@@ -905,7 +916,8 @@ data: {"text": "", "done": true}</code></pre>
 chunks/
   baroque.json         ← chunk index with text
   baroque.npy          ← embedding vectors
-files_index.json       ← routing descriptions</code></pre>
+files_index.json       ← routing descriptions
+conflicts_index.json   ← persisted inconsistency warnings</code></pre>
     </div>
 
     <div class="divider"></div>

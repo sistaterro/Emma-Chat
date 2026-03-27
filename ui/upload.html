@@ -647,6 +647,113 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
     }
+
+    .alert-panel {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 149, 0, 0.08), rgba(255, 149, 0, 0.03));
+      border: 1px solid rgba(255, 149, 0, 0.22);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .alert-panel h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #8a4b00;
+      margin-bottom: 4px;
+    }
+
+    .alert-panel p {
+      font-size: 12px;
+      color: #8a5a12;
+      margin-bottom: 12px;
+    }
+
+    .alert-group {
+      display: grid;
+      gap: 10px;
+    }
+
+    .alert-item {
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 149, 0, 0.16);
+    }
+
+    .alert-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .alert-tags {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .alert-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+
+    .alert-tag.scope-user {
+      color: #1a7a3a;
+      background: #edf9f0;
+    }
+
+    .alert-tag.scope-global {
+      color: #0051a8;
+      background: #eaf3ff;
+    }
+
+    .alert-tag.sev-high {
+      color: #9f1d14;
+      background: #ffe9e7;
+    }
+
+    .alert-tag.sev-medium {
+      color: #8a4b00;
+      background: #fff1de;
+    }
+
+    .alert-tag.sev-low {
+      color: #6d5a10;
+      background: #fff8d8;
+    }
+
+    .alert-summary {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+
+    .alert-claims {
+      display: grid;
+      gap: 8px;
+    }
+
+    .alert-claim {
+      padding-top: 8px;
+      border-top: 1px dashed rgba(0, 0, 0, 0.08);
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .alert-claim strong {
+      color: var(--text);
+    }
   </style>
 </head>
 
@@ -727,6 +834,12 @@
             <div class="file-list" id="indexedList"></div>
           </div>
 
+          <div id="alertsSection" class="alert-panel" style="display:none">
+            <h3>Possible inconsistencies detected</h3>
+            <p>The new RAG may conflict with documents this user can already query. Review before relying on both together.</p>
+            <div id="alertsList" class="alert-group"></div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -739,6 +852,7 @@
 
     let pendingFiles = [];
     let currentUser  = null;
+    let uploadAlerts = [];
 
     function getToken() { return localStorage.getItem('emma_token'); }
 
@@ -829,7 +943,7 @@
             <div class="status-dot pending"></div>
             <span class="status-text pending">Pending</span>
           </div>
-          <button class="file-remove" onclick="removeFile('${escHtml(f.name)}')">×</button>
+          <button class="file-remove" onclick="removeFile('${escAttr(f.name)}')">×</button>
         </div>
       `).join('');
     }
@@ -843,6 +957,70 @@
       txt.textContent = label;
     }
 
+    function escAttr(s) {
+      return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function severityRank(sev) {
+      return ({ high: 3, medium: 2, low: 1 }[sev] || 0);
+    }
+
+    function severityLabel(sev) {
+      return (sev || 'medium').toUpperCase();
+    }
+
+    function renderAlerts() {
+      const section = document.getElementById('alertsSection');
+      const list = document.getElementById('alertsList');
+      if (!uploadAlerts.length) {
+        section.style.display = 'none';
+        list.innerHTML = '';
+        return;
+      }
+
+      section.style.display = 'block';
+      list.innerHTML = uploadAlerts.map(alert => {
+        const highest = (alert.matches || []).flatMap(m => m.items || []).sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
+        return `
+          <div class="alert-item">
+            <div class="alert-title">
+              <span>${escHtml(alert.file)}</span>
+              <div class="alert-tags">
+                <span class="alert-tag sev-${(highest && highest.severity) || 'medium'}">${severityLabel(highest && highest.severity)}</span>
+              </div>
+            </div>
+            ${(alert.matches || []).map(match => `
+              <div class="alert-summary">
+                Possible conflict with <strong>${escHtml(match.name)}</strong>
+                <span class="alert-tag scope-${match.scope}">${match.scope === 'global' ? 'GLOBAL' : 'MINE'}</span>
+                ${match.similarity ? `<span style="color:var(--text3)">match ${(match.similarity * 100).toFixed(0)}%</span>` : ''}
+                <div style="margin-top:4px">${escHtml(match.summary || 'Possible factual conflicts detected')}</div>
+              </div>
+              <div class="alert-claims">
+                ${(match.items || []).map(item => `
+                  <div class="alert-claim">
+                    <div><strong>${escHtml(item.topic || 'Possible conflict')}</strong> <span class="alert-tag sev-${item.severity || 'medium'}">${severityLabel(item.severity)}</span></div>
+                    <div><strong>New:</strong> ${escHtml(item.new_claim || '')}</div>
+                    <div><strong>Existing:</strong> ${escHtml(item.existing_claim || '')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function syncAlertsFromIndexed(files) {
+      uploadAlerts = files
+        .filter(f => f.inconsistencies && f.inconsistencies.has_any)
+        .map(f => ({
+          file: f.name,
+          matches: f.inconsistencies.matches || [],
+        }));
+      renderAlerts();
+    }
+
     // ── UPLOAD ─────────────────────────────────────────────
 
     async function uploadAll() {
@@ -851,6 +1029,8 @@
       const scope = getUploadScope();
       btn.disabled = true;
       let success = 0, failed = 0;
+      uploadAlerts = [];
+      renderAlerts();
 
       for (const file of pendingFiles) {
         setItemStatus(file.name, 'indexing', 'Uploading…');
@@ -859,7 +1039,16 @@
           form.append('file', file);
           const res = await authFetch(`/upload?scope=${scope}`, { method: 'POST', body: form });
           if (res.ok) {
+            const data = await res.json();
             setItemStatus(file.name, 'indexing', 'Indexing…');
+            if (data.inconsistencies && data.inconsistencies.has_any) {
+              uploadAlerts.push({
+                file: file.name,
+                matches: data.inconsistencies.matches || [],
+              });
+              setItemStatus(file.name, 'error', 'Review warning');
+              renderAlerts();
+            }
             success++;
           } else {
             setItemStatus(file.name, 'error', 'Error');
@@ -873,6 +1062,7 @@
       btn.disabled = false;
       if (success > 0) { showToast(`${success} file${success > 1 ? 's' : ''} uploaded — indexing in progress`, 'success'); setTimeout(() => loadIndexed(), 3000); }
       if (failed > 0)  showToast(`${failed} file${failed > 1 ? 's' : ''} failed to upload`, 'error');
+      if (uploadAlerts.length) showToast(`Detected possible inconsistencies in ${uploadAlerts.length} upload${uploadAlerts.length > 1 ? 's' : ''}`, 'error');
     }
 
     // ── INDEXED FILES ──────────────────────────────────────
@@ -882,6 +1072,7 @@
         const res  = await authFetch('/files');
         if (!res.ok) return;
         const data = await res.json();
+        syncAlertsFromIndexed(data.files || []);
         renderIndexed(data.files || []);
       } catch (_) { }
     }
@@ -897,17 +1088,25 @@
           ? `<span style="font-size:10px;background:#e8f1fb;color:#0071e3;border-radius:4px;padding:1px 6px;font-weight:600;">GLOBAL</span>`
           : `<span style="font-size:10px;background:#f0faf3;color:#34c759;border-radius:4px;padding:1px 6px;font-weight:600;">MINE</span>`;
         const canDelete = f.scope === 'user' || (currentUser && currentUser.role === 'admin');
+        const hasConflicts = !!(f.inconsistencies && f.inconsistencies.has_any);
+        const conflictCount = hasConflicts
+          ? (f.inconsistencies.matches || []).reduce((sum, m) => sum + ((m.items || []).length || 0), 0)
+          : 0;
         return `
         <div class="file-item" id="indexed-${f.scope}-${f.stem}">
           <div class="file-icon">📄</div>
           <div class="file-info">
             <div class="file-name">${escHtml(f.name)} ${scopeBadge}</div>
-            <div class="file-meta">${f.chunks} chunks · ${f.description || 'No description'}</div>
+            <div class="file-meta">
+              ${f.chunks} chunks · ${escHtml(f.description || 'No description')}
+              ${hasConflicts ? `<span class="alert-tag sev-medium" style="margin-left:8px">CONFLICTS ${conflictCount}</span>` : ''}
+            </div>
+            ${hasConflicts ? `<div class="alert-summary" style="margin-top:6px">${escHtml((f.inconsistencies.matches || [])[0]?.summary || 'Possible factual conflicts detected')}</div>` : ''}
             ${f.indexed ? `<div class="progress-wrap"><div class="progress-bar" style="width:100%"></div></div>` : ''}
           </div>
           <div class="file-status">
-            <div class="status-dot ${f.indexed ? 'ready' : 'indexing'}"></div>
-            <span class="status-text ${f.indexed ? 'ready' : 'indexing'}">${f.indexed ? 'Ready' : 'Indexing'}</span>
+            <div class="status-dot ${hasConflicts ? 'error' : (f.indexed ? 'ready' : 'indexing')}"></div>
+            <span class="status-text ${hasConflicts ? 'error' : (f.indexed ? 'ready' : 'indexing')}">${hasConflicts ? 'Conflicts' : (f.indexed ? 'Ready' : 'Indexing')}</span>
           </div>
           <a class="file-remove" href="${BASE_URL}/files/${f.scope}/${f.stem}/download?token=${getToken()}" download title="Download">↓</a>
           ${canDelete ? `<button class="file-remove" onclick="deleteFile('${f.scope}','${f.stem}')" title="Delete">×</button>` : ''}

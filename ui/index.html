@@ -84,7 +84,7 @@
     /* ── GRID ── */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(4, 280px);
+      grid-template-columns: repeat(3, 280px);
       gap: 20px;
     }
 
@@ -471,7 +471,43 @@
       margin-top: 40px;
       font-size: 12px;
       color: var(--text4);
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px 5px 10px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .user-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #34c759;
+      flex-shrink: 0;
+    }
+
+    .logout-btn {
+      background: none;
+      border: none;
+      font-size: 12px;
+      color: var(--text3);
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .logout-btn:hover { color: var(--text); }
   </style>
 </head>
 
@@ -497,8 +533,8 @@
       <span class="card-arrow">→</span>
     </a>
 
-    <!-- EVIL EMMA -->
-    <a class="card card-evil" href="chat_evil_emma.html">
+    <!-- EVIL EMMA (hidden) -->
+    <a class="card card-evil" href="chat_evil_emma.html" style="display:none">
       <span class="card-label">// RESTRICTED</span>
       <div class="eye-red">
         <div class="ring"></div>
@@ -531,7 +567,51 @@
 
   </div>
 
-  <p class="page-footer">Emma v1.0 · Private AI · All data stays local</p>
+  <div class="page-footer">
+    <span>Emma v2.0 · Private AI</span>
+    <div class="user-pill">
+      <div class="user-dot"></div>
+      <span id="usernameDisplay">…</span>
+    </div>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </div>
+
+  <script>
+    const BASE_URL = 'http://localhost:8000';
+
+    function getToken() { return localStorage.getItem('emma_token'); }
+
+    async function checkAuth() {
+      const token = getToken();
+      if (!token) { window.location.href = '/ui/login.html'; return; }
+      const res = await fetch(`${BASE_URL}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => null);
+      if (!res || !res.ok) {
+        localStorage.removeItem('emma_token');
+        localStorage.removeItem('emma_user');
+        window.location.href = '/ui/login.html';
+        return;
+      }
+      const user = await res.json();
+      document.getElementById('usernameDisplay').textContent = user.username;
+    }
+
+    async function logout() {
+      const token = getToken();
+      if (token) {
+        await fetch(`${BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => {});
+      }
+      localStorage.removeItem('emma_token');
+      localStorage.removeItem('emma_user');
+      window.location.href = '/ui/login.html';
+    }
+
+    checkAuth();
+  </script>
 
 </body>
 

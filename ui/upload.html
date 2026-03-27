@@ -677,7 +677,8 @@
       </div>
 
       <div class="sidebar-footer">
-        <span class="footer-id">Emma v1.0</span>
+        <span class="footer-id" id="currentUser">…</span>
+        <button class="btn-clear" onclick="logout()" style="font-size:11px;color:var(--red,#ff3b30);background:none;border:none;cursor:pointer;font-family:inherit;">Logout</button>
       </div>
     </div>
 
@@ -709,6 +710,13 @@
             <div class="file-list" id="fileList"></div>
             <div class="upload-actions" style="margin-top: 16px">
               <button class="btn-clear-all" onclick="clearAll()">Clear all</button>
+              <div id="scopeWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text3);">
+                <span>Upload to:</span>
+                <select id="scopeSelect" style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-family:inherit;cursor:pointer;">
+                  <option value="user">Mine</option>
+                  <option value="global">Global</option>
+                </select>
+              </div>
               <button class="btn-upload" id="uploadBtn" onclick="uploadAll()">Upload ↑</button>
             </div>
           </div>
@@ -727,11 +735,32 @@
   <div id="toast"></div>
 
   <script>
-    const API_HOST = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'localhost' : location.hostname;
-    const BASE_URL = `http://${API_HOST}:8000`;
+    const BASE_URL = 'http://localhost:8000';
 
     let pendingFiles = [];
+    let currentUser  = null;
+
+    function getToken() { return localStorage.getItem('emma_token'); }
+
+    async function authFetch(path, options = {}) {
+      const token = getToken();
+      if (!options.headers) options.headers = {};
+      if (token) options.headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(BASE_URL + path, options);
+      if (res.status === 401) {
+        localStorage.removeItem('emma_token');
+        window.location.href = '/ui/login.html';
+        throw new Error('Unauthorized');
+      }
+      return res;
+    }
+
+    async function logout() {
+      await authFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+      localStorage.removeItem('emma_token');
+      localStorage.removeItem('emma_user');
+      window.location.href = '/ui/login.html';
+    }
 
     // ── DROP ZONE ──────────────────────────────────────────
 
@@ -757,9 +786,7 @@
 
     function addFiles(files) {
       files.forEach(f => {
-        if (!pendingFiles.find(p => p.name === f.name)) {
-          pendingFiles.push(f);
-        }
+        if (!pendingFiles.find(p => p.name === f.name)) pendingFiles.push(f);
       });
       renderPending();
     }
@@ -769,10 +796,7 @@
       renderPending();
     }
 
-    function clearAll() {
-      pendingFiles = [];
-      renderPending();
-    }
+    function clearAll() { pendingFiles = []; renderPending(); }
 
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
@@ -780,17 +804,18 @@
       return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
+    function getUploadScope() {
+      const sel = document.getElementById('scopeSelect');
+      return sel ? sel.value : 'user';
+    }
+
     function renderPending() {
-      const section = document.getElementById('fileListSection');
-      const list = document.getElementById('fileList');
+      const section  = document.getElementById('fileListSection');
+      const list     = document.getElementById('fileList');
       const countTag = document.getElementById('fileCountTag');
 
       countTag.textContent = pendingFiles.length + (pendingFiles.length === 1 ? ' file' : ' files');
-
-      if (!pendingFiles.length) {
-        section.style.display = 'none';
-        return;
-      }
+      if (!pendingFiles.length) { section.style.display = 'none'; return; }
 
       section.style.display = 'block';
       list.innerHTML = pendingFiles.map(f => `
@@ -812,29 +837,27 @@
     function setItemStatus(name, status, label) {
       const item = document.getElementById('item-' + CSS.escape(name));
       if (!item) return;
-      const dot = item.querySelector('.status-dot');
-      const text = item.querySelector('.status-text');
-      dot.className = 'status-dot ' + status;
-      text.className = 'status-text ' + status;
-      text.textContent = label;
+      item.querySelector('.status-dot').className = 'status-dot ' + status;
+      const txt = item.querySelector('.status-text');
+      txt.className = 'status-text ' + status;
+      txt.textContent = label;
     }
 
     // ── UPLOAD ─────────────────────────────────────────────
 
     async function uploadAll() {
       if (!pendingFiles.length) return;
-      const btn = document.getElementById('uploadBtn');
+      const btn   = document.getElementById('uploadBtn');
+      const scope = getUploadScope();
       btn.disabled = true;
-
-      let success = 0;
-      let failed = 0;
+      let success = 0, failed = 0;
 
       for (const file of pendingFiles) {
         setItemStatus(file.name, 'indexing', 'Uploading…');
         try {
           const form = new FormData();
           form.append('file', file);
-          const res = await fetch(`${BASE_URL}/upload`, { method: 'POST', body: form });
+          const res = await authFetch(`/upload?scope=${scope}`, { method: 'POST', body: form });
           if (res.ok) {
             setItemStatus(file.name, 'indexing', 'Indexing…');
             success++;
@@ -843,27 +866,20 @@
             failed++;
           }
         } catch (err) {
-          setItemStatus(file.name, 'error', 'Error');
-          failed++;
+          if (err.message !== 'Unauthorized') { setItemStatus(file.name, 'error', 'Error'); failed++; }
         }
       }
 
       btn.disabled = false;
-
-      if (success > 0) {
-        showToast(`${success} file${success > 1 ? 's' : ''} uploaded — indexing in progress`, 'success');
-        setTimeout(() => { loadIndexed(); }, 3000);
-      }
-      if (failed > 0) {
-        showToast(`${failed} file${failed > 1 ? 's' : ''} failed to upload`, 'error');
-      }
+      if (success > 0) { showToast(`${success} file${success > 1 ? 's' : ''} uploaded — indexing in progress`, 'success'); setTimeout(() => loadIndexed(), 3000); }
+      if (failed > 0)  showToast(`${failed} file${failed > 1 ? 's' : ''} failed to upload`, 'error');
     }
 
     // ── INDEXED FILES ──────────────────────────────────────
 
     async function loadIndexed() {
       try {
-        const res = await fetch(`${BASE_URL}/files`);
+        const res  = await authFetch('/files');
         if (!res.ok) return;
         const data = await res.json();
         renderIndexed(data.files || []);
@@ -872,19 +888,20 @@
 
     function renderIndexed(files) {
       const section = document.getElementById('indexedSection');
-      const list = document.getElementById('indexedList');
-
-      if (!files.length) {
-        section.style.display = 'none';
-        return;
-      }
+      const list    = document.getElementById('indexedList');
+      if (!files.length) { section.style.display = 'none'; return; }
 
       section.style.display = 'block';
-      list.innerHTML = files.map(f => `
-        <div class="file-item" id="indexed-${f.stem}">
+      list.innerHTML = files.map(f => {
+        const scopeBadge = f.scope === 'global'
+          ? `<span style="font-size:10px;background:#e8f1fb;color:#0071e3;border-radius:4px;padding:1px 6px;font-weight:600;">GLOBAL</span>`
+          : `<span style="font-size:10px;background:#f0faf3;color:#34c759;border-radius:4px;padding:1px 6px;font-weight:600;">MINE</span>`;
+        const canDelete = f.scope === 'user' || (currentUser && currentUser.role === 'admin');
+        return `
+        <div class="file-item" id="indexed-${f.scope}-${f.stem}">
           <div class="file-icon">📄</div>
           <div class="file-info">
-            <div class="file-name">${escHtml(f.name)}</div>
+            <div class="file-name">${escHtml(f.name)} ${scopeBadge}</div>
             <div class="file-meta">${f.chunks} chunks · ${f.description || 'No description'}</div>
             ${f.indexed ? `<div class="progress-wrap"><div class="progress-bar" style="width:100%"></div></div>` : ''}
           </div>
@@ -892,32 +909,30 @@
             <div class="status-dot ${f.indexed ? 'ready' : 'indexing'}"></div>
             <span class="status-text ${f.indexed ? 'ready' : 'indexing'}">${f.indexed ? 'Ready' : 'Indexing'}</span>
           </div>
-          <a class="file-remove" href="${BASE_URL}/files/${f.stem}/download" download title="Download file">↓</a>
-          <button class="file-remove" onclick="deleteFile('${f.stem}')" title="Delete file">×</button>
-        </div>
-      `).join('');
+          <a class="file-remove" href="${BASE_URL}/files/${f.scope}/${f.stem}/download?token=${getToken()}" download title="Download">↓</a>
+          ${canDelete ? `<button class="file-remove" onclick="deleteFile('${f.scope}','${f.stem}')" title="Delete">×</button>` : ''}
+        </div>`;
+      }).join('');
     }
 
-    async function deleteFile(stem) {
+    async function deleteFile(scope, stem) {
       if (!confirm(`Delete "${stem}" and all its indexed data?`)) return;
       try {
-        const res = await fetch(`${BASE_URL}/files/${encodeURIComponent(stem)}`, { method: 'DELETE' });
+        const res = await authFetch(`/files/${scope}/${encodeURIComponent(stem)}`, { method: 'DELETE' });
         if (res.ok) {
-          document.getElementById('indexed-' + stem)?.remove();
-          showToast(`"${stem}" deleted`, 'success');
+          document.getElementById(`indexed-${scope}-${stem}`)?.remove();
+          showToast(`"${stem}" eliminado`, 'success');
           loadIndexed();
         } else {
           showToast('Error deleting file', 'error');
         }
-      } catch {
-        showToast('Server unreachable', 'error');
-      }
+      } catch { showToast('Server unreachable', 'error'); }
     }
 
     // ── UTILS ──────────────────────────────────────────────
 
     function escHtml(s) {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     let toastTimer;
@@ -931,7 +946,25 @@
 
     // ── INIT ───────────────────────────────────────────────
 
-    loadIndexed();
+    async function init() {
+      const token = getToken();
+      if (!token) { window.location.href = '/ui/login.html'; return; }
+      const res = await fetch(`${BASE_URL}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null);
+      if (!res || !res.ok) { localStorage.removeItem('emma_token'); window.location.href = '/ui/login.html'; return; }
+      currentUser = await res.json();
+
+      // Mostrar usuario y logout en sidebar si existe
+      const userEl = document.getElementById('currentUser');
+      if (userEl) userEl.textContent = currentUser.username;
+
+      // Mostrar selector de scope solo para admin
+      const scopeWrap = document.getElementById('scopeWrap');
+      if (scopeWrap) scopeWrap.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+
+      loadIndexed();
+    }
+
+    init();
   </script>
 </body>
 

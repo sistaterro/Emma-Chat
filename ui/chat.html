@@ -1177,8 +1177,11 @@
       <div id="convList"></div>
 
       <div class="sidebar-footer">
-        <span class="footer-id">Emma v1.0</span>
-        <button class="btn-clear" onclick="clearAllConversations()">Clear all</button>
+        <span class="footer-id" id="currentUser">…</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-clear" onclick="clearAllConversations()">Clear all</button>
+          <button class="btn-clear" onclick="logout()" style="color:var(--red,#ff3b30);">Logout</button>
+        </div>
       </div>
     </div>
 
@@ -1265,50 +1268,101 @@
       abortController: null,
     };
 
-    function save() {
-      localStorage.setItem('cds_convs', JSON.stringify(state.conversations));
-      localStorage.setItem('cds_active', state.activeId || '');
-      localStorage.setItem('cds_model', state.model);
+    function getToken() { return localStorage.getItem('emma_token'); }
+
+    async function authFetch(path, options = {}) {
+      const token = getToken();
+      if (!options.headers) options.headers = {};
+      if (token) options.headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(CONFIG.BASE_URL + path, options);
+      if (res.status === 401) {
+        localStorage.removeItem('emma_token');
+        window.location.href = '/ui/login.html';
+        throw new Error('Unauthorized');
+      }
+      return res;
     }
 
-    function load() {
-      try {
-        const c = localStorage.getItem('cds_convs');
-        if (c) state.conversations = JSON.parse(c);
-        const a = localStorage.getItem('cds_active');
-        if (a && state.conversations[a]) state.activeId = a;
-        const m = localStorage.getItem('cds_model');
-        if (m) state.model = m;
-      } catch (e) { }
+    function saveLocal() {
+      localStorage.setItem('emma_active', state.activeId || '');
+      localStorage.setItem('emma_model', state.model);
     }
 
     function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
-    function newConversation() {
-      const id = genId();
-      state.conversations[id] = { id, title: 'New chat', model: state.model, messages: [], createdAt: Date.now() };
+    async function loadConvMessages(id) {
+      try {
+        const res  = await authFetch(`/conversations/${id}`);
+        const data = await res.json();
+        if (state.conversations[id]) {
+          state.conversations[id].messages = (data.messages || []).map(m => ({
+            id: m.id, role: m.role, content: m.content,
+          }));
+        }
+      } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+    }
+
+    async function loadFromServer() {
+      try {
+        const res  = await authFetch('/conversations');
+        const data = await res.json();
+        state.conversations = {};
+        for (const c of (data.conversations || [])) {
+          state.conversations[c.id] = { ...c, messages: [] };
+        }
+        const m = localStorage.getItem('emma_model');
+        if (m) state.model = m;
+        const a = localStorage.getItem('emma_active');
+        if (a && state.conversations[a]) {
+          state.activeId = a;
+          await loadConvMessages(a);
+        }
+      } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+    }
+
+    async function newConversation() {
+      try {
+        const res  = await authFetch('/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'New chat', model: state.model }),
+        });
+        const conv = await res.json();
+        state.conversations[conv.id] = { ...conv, messages: [] };
+        state.activeId = conv.id;
+        saveLocal(); renderSidebar(); renderChat();
+      } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+    }
+
+    async function switchConversation(id) {
       state.activeId = id;
-      save(); renderSidebar(); renderChat();
-    }
-
-    function switchConversation(id) {
-      state.activeId = id; save(); renderSidebar(); renderChat();
-    }
-
-    function deleteConversation(id, e) {
-      e.stopPropagation();
-      delete state.conversations[id];
-      if (state.activeId === id) {
-        const ids = Object.keys(state.conversations);
-        state.activeId = ids.length ? ids[ids.length - 1] : null;
+      if (!state.conversations[id]?.messages?.length) {
+        await loadConvMessages(id);
       }
-      save(); renderSidebar(); renderChat();
+      saveLocal(); renderSidebar(); renderChat();
     }
 
-    function clearAllConversations() {
+    async function deleteConversation(id, e) {
+      e.stopPropagation();
+      try {
+        await authFetch(`/conversations/${id}`, { method: 'DELETE' });
+        delete state.conversations[id];
+        if (state.activeId === id) {
+          const ids = Object.keys(state.conversations);
+          state.activeId = ids.length ? ids[0] : null;
+        }
+        saveLocal(); renderSidebar(); renderChat();
+      } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+    }
+
+    async function clearAllConversations() {
       if (!confirm('Clear all conversations?')) return;
+      const ids = Object.keys(state.conversations);
+      for (const id of ids) {
+        await authFetch(`/conversations/${id}`, { method: 'DELETE' }).catch(() => {});
+      }
       state.conversations = {}; state.activeId = null;
-      save(); renderSidebar(); renderChat();
+      saveLocal(); renderSidebar(); renderChat();
     }
 
     function activeConv() { return state.activeId ? state.conversations[state.activeId] : null; }
@@ -1376,9 +1430,10 @@
       const conv = activeConv();
       if (!conv) return;
       conv.messages.push(msg);
-      if (conv.messages.length === 1 && msg.role === 'user')
+      if (conv.messages.filter(m => m.role === 'user').length === 1 && msg.role === 'user') {
         conv.title = msg.content.slice(0, 44) + (msg.content.length > 44 ? '…' : '');
-      save(); renderSidebar();
+        renderSidebar();
+      }
       const msgs = document.getElementById('messages');
       const empty = document.getElementById('emptyState');
       msgs.style.display = 'block';
@@ -1416,14 +1471,14 @@
     function onModelChange() {
       state.model = document.getElementById('modelSelect').value;
       document.getElementById('modelBadge').textContent = state.model;
-      save();
+      saveLocal();
     }
 
     async function sendMessage() {
       const ta = document.getElementById('msgInput');
       const text = ta.value.trim();
       if (!text || state.isGenerating) return;
-      if (!state.activeId) newConversation();
+      if (!state.activeId) await newConversation();
       ta.value = ''; ta.style.height = 'auto';
       document.getElementById('sendBtn').disabled = true;
       document.getElementById('charCount').textContent = '';
@@ -1477,7 +1532,7 @@
     function createAssistantStreamMsg() {
       const conv = activeConv(); if (!conv) return null;
       const msg = { id: genId(), role: 'assistant', content: '', model: state.model };
-      conv.messages.push(msg); save(); renderSidebar();
+      conv.messages.push(msg); renderSidebar();
       const msgs = document.getElementById('messages');
       document.getElementById('emptyState').style.display = 'none';
       msgs.style.display = 'block';
@@ -1492,7 +1547,7 @@
       if (!msg) return; msg.content = content;
       const bubble = document.querySelector('.msg-wrap.assistant:last-child .msg-bubble');
       if (bubble) bubble.innerHTML = fmtContent(content);
-      save(); scrollBottom();
+      scrollBottom();
     }
 
     function setHalState(s) {
@@ -1558,9 +1613,9 @@
       state.abortController = new AbortController();
       const res = await fetch(`${CONFIG.BASE_URL}${CONFIG.CHAT_ENDPOINT}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         signal: state.abortController.signal,
-        body: JSON.stringify({ model: state.model, messages, stream: CONFIG.STREAM, keep_alive: CONFIG.KEEP_ALIVE }),
+        body: JSON.stringify({ model: state.model, messages, stream: CONFIG.STREAM, keep_alive: CONFIG.KEEP_ALIVE, conversation_id: state.activeId }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       if (!CONFIG.STREAM) {
@@ -1620,7 +1675,10 @@
         setHalState('ready'); return;
       }
       try {
-        const res = await fetch(`${CONFIG.BASE_URL}${CONFIG.HEALTH_ENDPOINT}`, { signal: AbortSignal.timeout(4000) });
+        const res = await fetch(`${CONFIG.BASE_URL}${CONFIG.HEALTH_ENDPOINT}`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` },
+          signal: AbortSignal.timeout(4000)
+        });
         if (res.ok) {
           dot.className = 'status-dot online'; text.className = 'status-text online'; text.textContent = 'Connected';
           setHalState('ready');
@@ -1718,10 +1776,39 @@
       holoIndex = Math.floor(Math.random() * HOLO_PHRASES.length); holoTick();
     }
 
-    function init() {
-      load();
+    async function logout() {
+      const token = getToken();
+      if (token) {
+        await fetch(`${CONFIG.BASE_URL}/auth/logout`, {
+          method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => {});
+      }
+      localStorage.removeItem('emma_token');
+      localStorage.removeItem('emma_user');
+      window.location.href = '/ui/login.html';
+    }
+
+    async function init() {
+      const token = getToken();
+      if (!token) { window.location.href = '/ui/login.html'; return; }
+      const meRes = await fetch(`${CONFIG.BASE_URL}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => null);
+      if (!meRes || !meRes.ok) {
+        localStorage.removeItem('emma_token');
+        window.location.href = '/ui/login.html';
+        return;
+      }
+      const user = await meRes.json();
+      const userEl = document.getElementById('currentUser');
+      if (userEl) userEl.textContent = user.username;
+
+      const m = localStorage.getItem('emma_model');
+      if (m) state.model = m;
       document.getElementById('modelSelect').value = state.model;
       document.getElementById('modelBadge').textContent = state.model;
+
+      await loadFromServer();
       renderSidebar(); renderChat(); checkHealth();
       setInterval(checkHealth, CONFIG.HEALTH_INTERVAL);
       startHolo();

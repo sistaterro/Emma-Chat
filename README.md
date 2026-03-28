@@ -8,6 +8,8 @@ A fully local, private AI chat system with Retrieval-Augmented Generation (RAG).
 
 ![Upload](assets/uploads.png)
 
+![Conflict Detection](assets/conflict.png)
+
 ---
 
 ## What is this?
@@ -22,6 +24,10 @@ Emma is a local AI assistant that can answer questions based on your own documen
 It also includes:
 - **Upload-time inconsistency detection** to warn when a new RAG appears to conflict with the user's existing or global RAGs
 - **Multi-RAG routing** so comparative questions can use more than one relevant document at once
+
+What makes Emma different from a typical local chat-with-docs app is that it does not assume your RAG library is internally consistent just because the files are local. Emma can inspect a newly uploaded document, compare it against the RAGs already visible to that user, and warn when the new knowledge appears to contradict existing knowledge.
+
+That matters because inconsistent RAGs are dangerous. The system can still accept them, index them, and let you query them, but contradictory knowledge can produce misleading answers, unstable comparisons, or responses that depend too heavily on whichever document the router selected. Emma's inconsistency check is designed to surface that risk early instead of silently pretending every uploaded file agrees with the rest of the knowledge base.
 
 Every response is tagged with its source:
 - `[RAG]` — answer is based on your documents

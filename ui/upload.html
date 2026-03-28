@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="assets/emma-favicon.svg">
   <title>Emma · Upload</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -1029,6 +1030,7 @@
       const scope = getUploadScope();
       btn.disabled = true;
       let success = 0, failed = 0;
+      const remainingFiles = [];
       uploadAlerts = [];
       renderAlerts();
 
@@ -1046,19 +1048,25 @@
                 file: file.name,
                 matches: data.inconsistencies.matches || [],
               });
-              setItemStatus(file.name, 'error', 'Review warning');
               renderAlerts();
             }
             success++;
           } else {
             setItemStatus(file.name, 'error', 'Error');
+            remainingFiles.push(file);
             failed++;
           }
         } catch (err) {
-          if (err.message !== 'Unauthorized') { setItemStatus(file.name, 'error', 'Error'); failed++; }
+          if (err.message !== 'Unauthorized') {
+            setItemStatus(file.name, 'error', 'Error');
+            remainingFiles.push(file);
+            failed++;
+          }
         }
       }
 
+      pendingFiles = remainingFiles;
+      renderPending();
       btn.disabled = false;
       if (success > 0) { showToast(`${success} file${success > 1 ? 's' : ''} uploaded — indexing in progress`, 'success'); setTimeout(() => loadIndexed(), 3000); }
       if (failed > 0)  showToast(`${failed} file${failed > 1 ? 's' : ''} failed to upload`, 'error');

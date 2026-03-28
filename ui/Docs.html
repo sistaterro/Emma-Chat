@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="assets/emma-favicon.svg">
   <title>Emma Chat · Documentation</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -515,6 +516,17 @@
     }
 
     .callout strong { color: var(--blue); }
+
+    .doc-shot {
+      display: block;
+      width: 100%;
+      max-width: 760px;
+      margin: 14px 0 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      background: var(--surface);
+    }
   </style>
 </head>
 
@@ -566,7 +578,7 @@
       </div>
       <div class="hero-text">
         <h1>Chat <span>Emma</span> Docs</h1>
-        <p>Private local AI with RAG. Your documents, your server, your rules. No data leaves your machine.</p>
+        <p>Private local AI with RAG. Your documents, your server, your rules. Emma also warns when your own RAGs appear to contradict each other. No data leaves your machine.</p>
       </div>
     </div>
 
@@ -577,6 +589,8 @@
       <p class="section-sub">What Emma is and what it does</p>
 
       <p>Emma is a fully local AI chat system built on RAG — Retrieval-Augmented Generation. It lets you upload text documents and ask questions about them. The model answers using your documents as the source of truth, not its training data.</p>
+      <p>What makes Emma different from a basic chat-with-documents tool is that it also treats the knowledge base itself as something that can be checked. When a new RAG is uploaded, Emma can compare it against the user's existing and visible global RAGs and warn about likely contradictions before those conflicts silently shape future answers.</p>
+      <p>Emma can still accept inconsistent RAGs. That is sometimes useful, but it is also risky: contradictory documents can lead to unstable retrieval, misleading grounded answers, or comparisons that depend too much on whichever file was routed first. The inconsistency warning system exists to make that danger visible instead of hiding it.</p>
 
       <div class="card-grid">
         <div class="card">
@@ -598,6 +612,11 @@
           <span class="card-icon">🏷️</span>
           <div class="card-title">Auditable responses</div>
           <div class="card-desc">Every response is tagged [RAG], [DRIFT] or [NO INFO] so you always know the source.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">⚠️</span>
+          <div class="card-title">RAG conflict detection</div>
+          <div class="card-desc">New uploads are checked against existing RAGs so Emma can warn about likely contradictions before they poison later answers.</div>
         </div>
       </div>
 
@@ -896,6 +915,7 @@ data: {"text": "", "done": true}</code></pre>
       <h3>Adding a document</h3>
       <p>Open <code>http://localhost:5500/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically — no restart needed.</p>
       <p>During upload, Emma also checks the new RAG against the user's own documents and the visible global documents. If it finds likely contradictions, the upload page shows a warning panel and the indexed file keeps a persisted <code>Conflicts</code> badge.</p>
+      <img class="doc-shot" src="assets/conflict.png" alt="Example of Emma detecting a possible inconsistency between uploaded RAG files">
 
       <div class="callout"><strong>Naming convention:</strong> Use underscores instead of spaces. <code>solar_panel.txt</code> not <code>solar panel.txt</code>. The upload endpoint sanitizes filenames automatically.</div>
 

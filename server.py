@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 app.mount("/ui", StaticFiles(directory="ui"), name="ui")
+FAVICON_PATH = Path("assets/emma-favicon.svg")
 
 OLLAMA_BASE_URL  = "http://localhost:11434"
 TOP_K_CHUNKS     = 5
@@ -37,6 +38,13 @@ DB_PATH          = Path("emma.db")
 GLOBAL_FILES_DIR  = Path("files/global")
 GLOBAL_CHUNKS_DIR = Path("chunks/global")
 
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    if not FAVICON_PATH.exists():
+        raise HTTPException(status_code=404, detail="Favicon not found")
+    return FileResponse(path=str(FAVICON_PATH), media_type="image/svg+xml")
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -45,9 +53,9 @@ def verify_password(password: str, hashed: str) -> bool:
 
 security = HTTPBearer(auto_error=False)
 
-print("[embeddings] Cargando modelo de embeddings...")
+print("[embeddings] Loading embedding model...")
 embedder = SentenceTransformer(EMBED_MODEL_NAME)
-print("[embeddings] Modelo listo.")
+print("[embeddings] Embedding model ready.")
 
 
 # ── DB ────────────────────────────────────────────────────
@@ -110,7 +118,7 @@ def init_db():
             ("admin", hashed, datetime.utcnow().isoformat())
         )
         conn.commit()
-        print("[auth] Usuario admin creado (first use) — user: admin / pass: admin1234")
+        print("[auth] Admin user created (first use) — user: admin / pass: admin1234")
     conn.close()
 
 
@@ -167,7 +175,7 @@ def save_description_to_index(base_dir: Path, stem: str, description: str) -> No
     if stem not in index or not index[stem]:
         index[stem] = description
         idx_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"[index] files_index actualizado: {stem}")
+        print(f"[index] files_index updated: {stem}")
 
 
 def load_conflicts_index(base_dir: Path) -> dict:
@@ -189,7 +197,7 @@ def save_conflicts_to_index(base_dir: Path, stem: str, conflicts: dict) -> None:
     elif stem in index:
         del index[stem]
     idx_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[index] conflicts_index actualizado: {stem}")
+    print(f"[index] conflicts_index updated: {stem}")
 
 
 # ── MODELOS ──────────────────────────────────────────────
@@ -248,7 +256,7 @@ def chunk_text(text: str, min_words: int = 40) -> list[str]:
             if is_quality_chunk(buffer):
                 chunks.append(buffer)
             else:
-                print(f"[chunker] descartado: {buffer[:60]}...")
+                print(f"[chunker] discarded: {buffer[:60]}...")
             buffer = ""
     if buffer and is_quality_chunk(buffer):
         chunks.append(buffer)
@@ -272,10 +280,10 @@ async def generate_description(txt_path: Path, model: str = "qwen2.5:7b") -> str
             res  = await client.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload)
             data = res.json()
             desc = data.get("message", {}).get("content", "").strip()
-            print(f"[index] descripcion generada para {txt_path.name}: {desc}")
+            print(f"[index] description generated for {txt_path.name}: {desc}")
             return desc
     except Exception as e:
-        print(f"[index] error generando descripcion: {e}")
+        print(f"[index] error generating description: {e}")
         return ""
 
 
@@ -307,7 +315,7 @@ async def resolve_inconsistency_model(preferred_model: str = INCONSISTENCY_MODEL
             res.raise_for_status()
             data = res.json()
     except Exception as e:
-        print(f"[rag] no se pudo resolver inconsistency model, usando recomendado {preferred_model}: {e}")
+        print(f"[rag] could not resolve inconsistency model, using preferred {preferred_model}: {e}")
         return preferred_model
 
     models = data.get("models", []) or []
@@ -318,12 +326,12 @@ async def resolve_inconsistency_model(preferred_model: str = INCONSISTENCY_MODEL
 
     chat_candidates = [m for m in models if not is_embedding_model_name(str(m.get("name", "")))]
     if not chat_candidates:
-        print(f"[rag] no hay modelos chat instalados, usando fallback {preferred_model}")
+        print(f"[rag] no chat models installed, using fallback {preferred_model}")
         return preferred_model
 
     selected = sorted(chat_candidates, key=model_sort_key)[0]
     selected_name = str(selected.get("name", preferred_model))
-    print(f"[rag] {preferred_model} no está instalado; usando modelo más liviano disponible: {selected_name}")
+    print(f"[rag] {preferred_model} is not installed; using lightest available chat model: {selected_name}")
     return selected_name
 
 
@@ -357,12 +365,12 @@ def get_chunk_bundle(txt_path: Path, chunks_dir: Path) -> tuple[list[str], np.nd
             if chunks and len(vectors):
                 return chunks, vectors
         except Exception as e:
-            print(f"[rag] error leyendo chunks de {txt_path.name}: {e}")
+            print(f"[rag] error reading chunks for {txt_path.name}: {e}")
 
     try:
         text = txt_path.read_text(encoding="utf-8")
     except Exception as e:
-        print(f"[rag] error leyendo txt de {txt_path.name}: {e}")
+        print(f"[rag] error reading txt file {txt_path.name}: {e}")
         return None, None
 
     chunks = chunk_text(text)
@@ -510,7 +518,7 @@ async def compare_documents_for_inconsistencies(
                 "items": cleaned_items,
             }
     except Exception as e:
-        print(f"[rag] error comparando inconsistencias {new_name} vs {candidate_name}: {e}")
+        print(f"[rag] error comparing inconsistencies {new_name} vs {candidate_name}: {e}")
         return None
 
 
@@ -618,7 +626,7 @@ async def process_file(txt_path: Path, chunks_dir: Path) -> None:
     }
     json_path = chunks_dir / (txt_path.stem + ".json")
     json_path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[embeddings] Generando embeddings para {len(chunks)} chunks de {txt_path.name}...")
+    print(f"[embeddings] Generating embeddings for {len(chunks)} chunks from {txt_path.name}...")
     vectors  = embedder.encode(chunks, show_progress_bar=False)
     npy_path = chunks_dir / (txt_path.stem + ".npy")
     np.save(str(npy_path), vectors)
@@ -638,7 +646,7 @@ async def sync_dir(files_dir: Path, chunks_dir: Path) -> None:
         or not (chunks_dir / f"{stem}.npy").exists()
     ]
     if not pending:
-        print(f"[chunker] {files_dir} sincronizado.")
+        print(f"[chunker] {files_dir} synced.")
         return
     for path in pending:
         await process_file(path, chunks_dir)
@@ -673,7 +681,7 @@ def retrieve_chunks(question: str, stem: str, chunks_dir: Path, top_k: int = TOP
     scores   = cosine_similarity(q_vector, vectors)
     top_idx  = np.argsort(scores)[::-1][:top_k]
     selected = [chunks[i] for i in top_idx]
-    print(f"[rag] top {top_k} chunks de {stem} (scores: {[round(float(scores[i]), 3) for i in top_idx]})")
+    print(f"[rag] top {top_k} chunks for {stem} (scores: {[round(float(scores[i]), 3) for i in top_idx]})")
     return selected
 
 
@@ -1004,7 +1012,7 @@ async def upload_file(
     )
     dest.write_bytes(content)
     save_conflicts_to_index(dest_dir, dest.stem, inconsistencies)
-    print(f"[upload] {file.filename} guardado en {dest_dir} (scope={scope})")
+    print(f"[upload] {file.filename} saved to {dest_dir} (scope={scope})")
 
     asyncio.create_task(process_file(dest, chunks_dir))
     return {
@@ -1173,7 +1181,7 @@ async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
         })
 
     matched_files = await route_to_files(question, req.model, available)
-    print(f"[rag] routing -> {[m['key'] for m in matched_files] if matched_files else 'ninguno'}")
+    print(f"[rag] routing -> {[m['key'] for m in matched_files] if matched_files else 'none'}")
 
     if matched_files:
         context_chunks = []
@@ -1216,7 +1224,7 @@ def fix_tag(text: str, rag_active: bool) -> str:
     for tag in KNOWN_TAGS:
         if tag in text:
             if tag != "[RAG]":
-                print(f"[tag] forzando {tag} -> [RAG]")
+                print(f"[tag] forcing {tag} -> [RAG]")
                 return text.replace(tag, "[RAG]", 1)
             return text
     return text

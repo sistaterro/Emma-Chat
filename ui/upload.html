@@ -403,6 +403,14 @@
       animation: msgIn 0.2s ease forwards;
     }
 
+    .file-check {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blue);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
     @keyframes msgIn {
       from {
         opacity: 0;
@@ -797,6 +805,11 @@
       <div id="pageHeader">
         <div class="page-title">Knowledge Base</div>
         <div class="header-right">
+          <button class="btn-clear-all" id="selectAllBtn" onclick="selectAllIndexed()" style="display:none;">Select all</button>
+          <button class="btn-clear-all" id="clearSelectionBtn" onclick="clearIndexedSelection()" style="display:none;" disabled>Clear selection</button>
+          <button class="btn-clear-all" id="downloadSelectedBtn" onclick="downloadSelectedFiles()" style="display:none;" disabled>Download selected</button>
+          <button class="btn-clear-all" id="deleteSelectedBtn" onclick="deleteSelectedFiles()" style="display:none;" disabled>Delete selected</button>
+          <button class="btn-clear-all" id="deleteAllTopBtn" onclick="deleteAllFiles()" style="display:none;">Delete all RAGs</button>
           <span class="meta-tag" id="fileCountTag">0 files</span>
         </div>
       </div>
@@ -854,6 +867,8 @@
     let pendingFiles = [];
     let currentUser  = null;
     let uploadAlerts = [];
+    let indexedFilesCache = [];
+    let selectedIndexed = new Set();
 
     function getToken() { return localStorage.getItem('emma_token'); }
 
@@ -924,6 +939,15 @@
       return sel ? sel.value : 'user';
     }
 
+    function sanitizeFileName(name) {
+      return String(name || '').trim().toLowerCase().replace(/[^\w.]/g, '_').replace(/_+/g, '_');
+    }
+
+    function hasDuplicateIndexedName(name, scope = getUploadScope()) {
+      const safeName = sanitizeFileName(name);
+      return indexedFilesCache.some(f => f.scope === scope && f.name === safeName);
+    }
+
     function renderPending() {
       const section  = document.getElementById('fileListSection');
       const list     = document.getElementById('fileList');
@@ -938,11 +962,11 @@
           <div class="file-icon">📄</div>
           <div class="file-info">
             <div class="file-name">${escHtml(f.name)}</div>
-            <div class="file-meta">${formatSize(f.size)}</div>
+            <div class="file-meta">${formatSize(f.size)}${hasDuplicateIndexedName(f.name) ? ' · Name already exists' : ''}</div>
           </div>
           <div class="file-status">
             <div class="status-dot pending"></div>
-            <span class="status-text pending">Pending</span>
+            <span class="status-text pending">${hasDuplicateIndexedName(f.name) ? 'Will replace' : 'Pending'}</span>
           </div>
           <button class="file-remove" onclick="removeFile('${escAttr(f.name)}')">×</button>
         </div>
@@ -968,6 +992,57 @@
 
     function severityLabel(sev) {
       return (sev || 'medium').toUpperCase();
+    }
+
+    function fileSelectionKey(scope, stem) {
+      return `${scope}:${stem}`;
+    }
+
+    function updateSelectionActions() {
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+      const deleteBtn = document.getElementById('deleteSelectedBtn');
+      const downloadBtn = document.getElementById('downloadSelectedBtn');
+      const count = selectedIndexed.size;
+      const total = indexedFilesCache.length;
+      if (selectAllBtn) {
+        selectAllBtn.style.display = total ? 'inline-flex' : 'none';
+        selectAllBtn.disabled = total === 0 || count === total;
+      }
+      if (clearSelectionBtn) {
+        clearSelectionBtn.style.display = total ? 'inline-flex' : 'none';
+        clearSelectionBtn.disabled = count === 0;
+        clearSelectionBtn.textContent = count ? `Clear selection (${count})` : 'Clear selection';
+      }
+      if (deleteBtn) {
+        deleteBtn.style.display = total ? 'inline-flex' : 'none';
+        deleteBtn.disabled = count === 0;
+        deleteBtn.textContent = count ? `Delete selected (${count})` : 'Delete selected';
+      }
+      if (downloadBtn) {
+        downloadBtn.style.display = total ? 'inline-flex' : 'none';
+        downloadBtn.disabled = count === 0;
+        downloadBtn.textContent = count ? `Download selected (${count})` : 'Download selected';
+      }
+    }
+
+    function toggleIndexedSelection(scope, stem, checked) {
+      const key = fileSelectionKey(scope, stem);
+      if (checked) selectedIndexed.add(key);
+      else selectedIndexed.delete(key);
+      updateSelectionActions();
+    }
+
+    function selectAllIndexed() {
+      selectedIndexed = new Set(indexedFilesCache.map(f => fileSelectionKey(f.scope, f.stem)));
+      renderIndexed(indexedFilesCache);
+      updateSelectionActions();
+    }
+
+    function clearIndexedSelection() {
+      selectedIndexed.clear();
+      renderIndexed(indexedFilesCache);
+      updateSelectionActions();
     }
 
     function renderAlerts() {
@@ -1043,6 +1118,9 @@
           if (res.ok) {
             const data = await res.json();
             setItemStatus(file.name, 'indexing', 'Indexing…');
+            if (data.duplicate_name) {
+              showToast(`"${file.name}" replaced an existing ${scope === 'global' ? 'global' : 'personal'} RAG`, 'error');
+            }
             if (data.inconsistencies && data.inconsistencies.has_any) {
               uploadAlerts.push({
                 file: file.name,
@@ -1080,17 +1158,38 @@
         const res  = await authFetch('/files');
         if (!res.ok) return;
         const data = await res.json();
+        indexedFilesCache = data.files || [];
+        const validKeys = new Set(indexedFilesCache.map(f => fileSelectionKey(f.scope, f.stem)));
+        selectedIndexed = new Set([...selectedIndexed].filter(key => validKeys.has(key)));
         syncAlertsFromIndexed(data.files || []);
         renderIndexed(data.files || []);
+        renderPending();
+        updateSelectionActions();
       } catch (_) { }
     }
 
     function renderIndexed(files) {
       const section = document.getElementById('indexedSection');
       const list    = document.getElementById('indexedList');
-      if (!files.length) { section.style.display = 'none'; return; }
+      const deleteAllBtn = document.getElementById('deleteAllTopBtn');
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+      const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+      const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+      if (!files.length) {
+        section.style.display = 'none';
+        if (deleteAllBtn) deleteAllBtn.style.display = 'none';
+        if (selectAllBtn) selectAllBtn.style.display = 'none';
+        if (clearSelectionBtn) clearSelectionBtn.style.display = 'none';
+        if (deleteSelectedBtn) deleteSelectedBtn.style.display = 'none';
+        if (downloadSelectedBtn) downloadSelectedBtn.style.display = 'none';
+        selectedIndexed.clear();
+        updateSelectionActions();
+        return;
+      }
 
       section.style.display = 'block';
+      if (deleteAllBtn) deleteAllBtn.style.display = 'inline-flex';
       list.innerHTML = files.map(f => {
         const scopeBadge = f.scope === 'global'
           ? `<span style="font-size:10px;background:#e8f1fb;color:#0071e3;border-radius:4px;padding:1px 6px;font-weight:600;">GLOBAL</span>`
@@ -1100,8 +1199,10 @@
         const conflictCount = hasConflicts
           ? (f.inconsistencies.matches || []).reduce((sum, m) => sum + ((m.items || []).length || 0), 0)
           : 0;
+        const selected = selectedIndexed.has(fileSelectionKey(f.scope, f.stem));
         return `
         <div class="file-item" id="indexed-${f.scope}-${f.stem}">
+          <input class="file-check" type="checkbox" ${selected ? 'checked' : ''} onchange="toggleIndexedSelection('${f.scope}','${f.stem}', this.checked)" title="Select">
           <div class="file-icon">📄</div>
           <div class="file-info">
             <div class="file-name">${escHtml(f.name)} ${scopeBadge}</div>
@@ -1134,6 +1235,62 @@
           showToast('Error deleting file', 'error');
         }
       } catch { showToast('Server unreachable', 'error'); }
+    }
+
+    async function deleteAllFiles(scope = getUploadScope()) {
+      const label = scope === 'global' ? 'all global RAGs' : 'all your RAGs';
+      if (!confirm(`Delete ${label} and all indexed data?`)) return;
+      try {
+        const res = await authFetch(`/files/${scope}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast(`Deleted ${label}`, 'success');
+          uploadAlerts = [];
+          renderAlerts();
+          await loadIndexed();
+        } else {
+          showToast('Error deleting files', 'error');
+        }
+      } catch {
+        showToast('Server unreachable', 'error');
+      }
+    }
+
+    async function deleteSelectedFiles() {
+      const selectedFiles = indexedFilesCache.filter(f => selectedIndexed.has(fileSelectionKey(f.scope, f.stem)));
+      if (!selectedFiles.length) return;
+      if (!confirm(`Delete ${selectedFiles.length} selected RAG${selectedFiles.length > 1 ? 's' : ''}?`)) return;
+      let deleted = 0;
+      for (const file of selectedFiles) {
+        try {
+          const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}`, { method: 'DELETE' });
+          if (res.ok) deleted++;
+        } catch (_) { }
+      }
+      selectedIndexed.clear();
+      updateSelectionActions();
+      await loadIndexed();
+      showToast(`Deleted ${deleted} selected RAG${deleted !== 1 ? 's' : ''}`, deleted ? 'success' : 'error');
+    }
+
+    async function downloadSelectedFiles() {
+      const selectedFiles = indexedFilesCache.filter(f => selectedIndexed.has(fileSelectionKey(f.scope, f.stem)));
+      if (!selectedFiles.length) return;
+      for (const file of selectedFiles) {
+        try {
+          const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}/download`);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } catch (_) { }
+      }
+      showToast(`Downloaded ${selectedFiles.length} selected RAG${selectedFiles.length > 1 ? 's' : ''}`, 'success');
     }
 
     // ── UTILS ──────────────────────────────────────────────

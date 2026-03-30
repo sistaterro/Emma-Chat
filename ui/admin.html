@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emma · Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --bg2: #ebebed;
+      --surface: #ffffff;
+      --border: rgba(0, 0, 0, 0.08);
+      --border2: rgba(0, 0, 0, 0.12);
+      --blue: #0071e3;
+      --blue-light: #e8f1fb;
+      --blue-mid: rgba(0, 113, 227, 0.12);
+      --text: #1d1d1f;
+      --text2: #424245;
+      --text3: #86868b;
+      --text4: #aeaeb2;
+      --green: #34c759;
+      --orange: #ff9500;
+      --red: #ff3b30;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-xs: 6px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
+      --blur: blur(20px);
+      --sidebar-w: 240px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.72);
+      border-right: 1px solid var(--border);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      overflow: hidden;
+    }
+
+    .hal-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 8px;
+    }
+
+    .hal-eye {
+      position: relative;
+      width: 40px;
+      height: 40px;
+    }
+
+    .hal-eye .ring {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(0,113,227,0.15);
+      animation: halRing 4s ease-in-out infinite;
+    }
+
+    .hal-eye .ring2 {
+      position: absolute; inset: 6px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,113,227,0.08);
+      animation: halRing 4s ease-in-out infinite 0.8s;
+    }
+
+    .hal-eye .lens {
+      position: absolute; inset: 12px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #5eaeff 0%, #0071e3 35%, #0051a8 70%, #003070 100%);
+      animation: halBreath 4s ease-in-out infinite;
+      box-shadow: 0 0 10px rgba(0,113,227,0.35), 0 0 22px rgba(0,113,227,0.15);
+    }
+
+    .hal-eye .lens::after {
+      content: '';
+      position: absolute;
+      top: 15%; left: 18%;
+      width: 30%; height: 22%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.55), transparent);
+      border-radius: 50%;
+    }
+
+    @keyframes halBreath {
+      0%, 100% { box-shadow: 0 0 10px rgba(0,113,227,0.3), 0 0 24px rgba(0,113,227,0.12); transform: scale(1); }
+      50%       { box-shadow: 0 0 20px rgba(0,113,227,0.55), 0 0 48px rgba(0,113,227,0.22); transform: scale(1.07); }
+    }
+
+    @keyframes halRing {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50%       { opacity: 1; transform: scale(1.06); }
+    }
+
+    .app-logo {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.2px;
+      text-align: center;
+    }
+
+    .app-logo span { color: var(--blue); }
+
+    .admin-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: white;
+      background: var(--blue);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* ── NAV ── */
+    .nav-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .nav-group {
+      margin-bottom: 4px;
+    }
+
+    .nav-group-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--text4);
+      padding: 8px 10px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 13px;
+      font-weight: 400;
+      transition: background 0.12s;
+      user-select: none;
+    }
+
+    .nav-item:hover { background: var(--bg2); }
+
+    .nav-item.active {
+      background: var(--blue-light);
+      color: var(--blue);
+      font-weight: 500;
+    }
+
+    .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--bg2);
+      color: var(--text3);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 10px;
+    }
+
+    .nav-item.active .nav-badge {
+      background: rgba(0,113,227,0.15);
+      color: var(--blue);
+    }
+
+    /* ── SIDEBAR FOOTER ── */
+    .sidebar-footer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-user {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .footer-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .footer-role {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .btn-logout {
+      background: none;
+      border: none;
+      color: var(--text4);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      transition: all 0.12s;
+    }
+
+    .btn-logout:hover { color: var(--red); background: rgba(255,59,48,0.07); }
+
+    /* ── MAIN ── */
+    #main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── KR BAR ── */
+    .kr-bar {
+      height: 2px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .kr-bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -30%;
+      width: 30%; height: 100%;
+      background: linear-gradient(to right, transparent, var(--blue), transparent);
+      box-shadow: 0 0 8px rgba(0,113,227,0.6);
+      animation: krScan 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes krScan {
+      0%   { left: -30% }
+      100% { left: 100% }
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+    }
+
+    .page-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      background: var(--blue);
+      border: none;
+      border-radius: 20px;
+      color: white;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 2px 8px rgba(0,113,227,0.3);
+    }
+
+    .btn-primary:hover {
+      background: #0077ed;
+      box-shadow: 0 4px 14px rgba(0,113,227,0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      color: var(--text2);
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg2);
+      border-color: var(--border2);
+    }
+
+    /* ── CONTENT ── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 28px;
+    }
+
+    #content::-webkit-scrollbar { width: 4px; }
+    #content::-webkit-scrollbar-thumb { background: var(--bg2); border-radius: 2px; }
+
+    /* ── SECTION PANELS ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .stat-value.blue  { color: var(--blue); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.orange { color: var(--orange); }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .search-input {
+      padding: 7px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      width: 200px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-mid);
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 10px 20px;
+      background: var(--bg);
+      color: var(--text3);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2);
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg); }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      border: 1px solid rgba(0,113,227,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      flex-shrink: 0;
+    }
+
+    .user-name { font-weight: 500; color: var(--text); font-size: 13px; }
+    .user-email { font-size: 12px; color: var(--text3); }
+
+    /* ── ROLE BADGE ── */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .role-admin    { background: var(--blue-light); color: var(--blue); border: 1px solid rgba(0,113,227,0.2); }
+    .role-user     { background: #f0faf3; color: #1a7a3a; border: 1px solid rgba(52,199,89,0.2); }
+    .role-readonly { background: var(--bg2); color: var(--text3); border: 1px solid var(--border2); }
+
+    /* ── STATUS DOT ── */
+    .status-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.active   { background: var(--green); box-shadow: 0 0 6px rgba(52,199,89,0.5); }
+    .status-dot.disabled { background: var(--text4); }
+
+    /* ── ROW ACTIONS ── */
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    tbody tr:hover .row-actions { opacity: 1; }
+
+    .btn-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--text3);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s;
+    }
+
+    .btn-icon:hover { background: var(--bg2); color: var(--text); }
+    .btn-icon.danger:hover { background: rgba(255,59,48,0.07); color: var(--red); border-color: rgba(255,59,48,0.2); }
+    .btn-icon.view:hover { background: var(--blue-light); color: var(--blue); border-color: rgba(0,113,227,0.2); }
+
+    /* ── WORKSPACE CARDS ── */
+    .ws-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .ws-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .ws-card:hover {
+      box-shadow: var(--shadow);
+      border-color: rgba(0,113,227,0.2);
+      transform: translateY(-2px);
+    }
+
+    .ws-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .ws-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .ws-meta {
+      font-size: 12px;
+      color: var(--text3);
+      display: flex;
+      gap: 12px;
+    }
+
+    .ws-add {
+      border: 2px dashed var(--border2);
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 120px;
+      color: var(--text4);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .ws-add:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--blue-light);
+      transform: none;
+      box-shadow: none;
+    }
+
+    .ws-add-icon { font-size: 24px; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      width: 460px;
+      max-width: 90vw;
+      padding: 28px;
+      transform: translateY(12px);
+      transition: transform 0.2s;
+    }
+
+    .modal-overlay.show .modal { transform: translateY(0); }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      letter-spacing: -0.2px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text3);
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-mid);
+      background: var(--surface);
+    }
+
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386868b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    /* ── SYSTEM PANEL ── */
+    .system-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .system-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .system-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .system-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .system-row:last-child { border-bottom: none; }
+    .system-row-label { color: var(--text3); }
+    .system-row-value { color: var(--text); font-weight: 500; }
+    .system-row-value.ok { color: var(--green); }
+    .system-row-value.warn { color: var(--orange); }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.25s;
+      pointer-events: none;
+      z-index: 9999;
+      backdrop-filter: var(--blur);
+      box-shadow: var(--shadow-lg);
+    }
+
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: rgba(52,199,89,0.3); color: var(--green); }
+    #toast.error   { border-color: rgba(255,59,48,0.3); color: var(--red); }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="hal-wrap">
+      <div class="hal-eye">
+        <div class="ring"></div>
+        <div class="ring2"></div>
+        <div class="lens"></div>
+      </div>
+      <div class="app-logo">Chat <span>Emma</span></div>
+      <span class="admin-badge">Admin Panel</span>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-group">
+        <div class="nav-group-label">Management</div>
+        <div class="nav-item active" onclick="showPanel('users')">
+          <span class="nav-icon">👥</span>
+          Users
+          <span class="nav-badge" id="badge-users">4</span>
+        </div>
+        <div class="nav-item" onclick="showPanel('workspaces')">
+          <span class="nav-icon">🗂️</span>
+          Workspaces
+          <span class="nav-badge" id="badge-ws">3</span>
+        </div>
+        <div class="nav-item" onclick="showPanel('rags')">
+          <span class="nav-icon">📄</span>
+          Global RAGs
+          <span class="nav-badge" id="badge-rags">6</span>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">System</div>
+        <div class="nav-item" onclick="showPanel('system')">
+          <span class="nav-icon">⚙️</span>
+          System
+        </div>
+        <div class="nav-item" onclick="window.location.href='index.html'">
+          <span class="nav-icon">←</span>
+          Back to Emma
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="footer-user">
+        <div class="footer-name">Admin</div>
+        <div class="footer-role">Administrator</div>
+      </div>
+      <button class="btn-logout" title="Logout" onclick="logout()">⏻</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="kr-bar"></div>
+
+    <!-- ── USERS PANEL ── -->
+    <div id="panel-users" class="panel active">
+      <div class="page-header">
+        <div class="page-title">Users</div>
+        <div class="header-actions">
+          <input class="search-input" type="text" placeholder="Search users…" oninput="filterUsers(this.value)">
+          <button class="btn-primary" onclick="openModal('modal-new-user')">+ New User</button>
+        </div>
+      </div>
+      <div id="content">
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Total users</div>
+            <div class="stat-value blue" id="stat-total">4</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Admins</div>
+            <div class="stat-value" id="stat-admins">1</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active</div>
+            <div class="stat-value green" id="stat-active">3</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Disabled</div>
+            <div class="stat-value orange" id="stat-disabled">1</div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">All users</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Workspace</th>
+                <th>Status</th>
+                <th>Last login</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="avatar">A</div>
+                    <div>
+                      <div class="user-name">Admin</div>
+                      <div class="user-email">admin@emmatech.nl</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="role-badge role-admin">Admin</span></td>
+                <td>—</td>
+                <td><div class="status-cell"><div class="status-dot active"></div>Active</div></td>
+                <td>Today</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon view" title="View as" onclick="impersonate('admin')">👁</button>
+                    <button class="btn-icon" title="Edit" onclick="editUser('admin')">✏️</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="avatar" style="background:#f0faf3;border-color:rgba(52,199,89,0.2);color:#1a7a3a">S</div>
+                    <div>
+                      <div class="user-name">Sofia Brandt</div>
+                      <div class="user-email">s.brandt@emmatech.nl</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="role-badge role-user">User</span></td>
+                <td>HR</td>
+                <td><div class="status-cell"><div class="status-dot active"></div>Active</div></td>
+                <td>Yesterday</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon view" title="View as" onclick="impersonate('sofia')">👁</button>
+                    <button class="btn-icon" title="Edit" onclick="editUser('sofia')">✏️</button>
+                    <button class="btn-icon danger" title="Disable" onclick="toggleUser('sofia', false)">🚫</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="avatar" style="background:#f0faf3;border-color:rgba(52,199,89,0.2);color:#1a7a3a">D</div>
+                    <div>
+                      <div class="user-name">Dimitri Kowalski</div>
+                      <div class="user-email">d.kowalski@emmatech.nl</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="role-badge role-user">User</span></td>
+                <td>Engineering</td>
+                <td><div class="status-cell"><div class="status-dot active"></div>Active</div></td>
+                <td>2 days ago</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon view" title="View as" onclick="impersonate('dimitri')">👁</button>
+                    <button class="btn-icon" title="Edit" onclick="editUser('dimitri')">✏️</button>
+                    <button class="btn-icon danger" title="Disable" onclick="toggleUser('dimitri', false)">🚫</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="avatar" style="background:var(--bg2);border-color:var(--border2);color:var(--text4)">T</div>
+                    <div>
+                      <div class="user-name" style="color:var(--text3)">Thomas Eriksen</div>
+                      <div class="user-email">t.eriksen@emmatech.nl</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="role-badge role-readonly">Read-only</span></td>
+                <td>Sales</td>
+                <td><div class="status-cell"><div class="status-dot disabled"></div>Disabled</div></td>
+                <td>2 weeks ago</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon" title="Enable" onclick="toggleUser('thomas', true)">✅</button>
+                    <button class="btn-icon" title="Edit" onclick="editUser('thomas')">✏️</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WORKSPACES PANEL ── -->
+    <div id="panel-workspaces" class="panel">
+      <div class="page-header">
+        <div class="page-title">Workspaces</div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="openModal('modal-new-ws')">+ New Workspace</button>
+        </div>
+      </div>
+      <div id="content">
+        <div class="ws-grid">
+          <div class="ws-card">
+            <span class="ws-icon">🏢</span>
+            <div class="ws-name">Human Resources</div>
+            <div class="ws-meta">
+              <span>3 users</span>
+              <span>4 RAGs</span>
+            </div>
+          </div>
+          <div class="ws-card">
+            <span class="ws-icon">⚙️</span>
+            <div class="ws-name">Engineering</div>
+            <div class="ws-meta">
+              <span>5 users</span>
+              <span>7 RAGs</span>
+            </div>
+          </div>
+          <div class="ws-card">
+            <span class="ws-icon">💼</span>
+            <div class="ws-name">Sales</div>
+            <div class="ws-meta">
+              <span>4 users</span>
+              <span>3 RAGs</span>
+            </div>
+          </div>
+          <div class="ws-card ws-add" onclick="openModal('modal-new-ws')">
+            <span class="ws-add-icon">+</span>
+            <span>New workspace</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GLOBAL RAGS PANEL ── -->
+    <div id="panel-rags" class="panel">
+      <div class="page-header">
+        <div class="page-title">Global RAGs</div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="window.location.href='upload.html'">+ Upload Document</button>
+        </div>
+      </div>
+      <div id="content">
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Global documents — visible to all users</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Chunks</th>
+                <th>Description</th>
+                <th>Uploaded</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>baroque.txt</strong></td>
+                <td>127</td>
+                <td style="color:var(--text3);font-size:12px">Article about the Baroque artistic style…</td>
+                <td style="color:var(--text3)">Mar 23</td>
+                <td><div class="status-cell"><div class="status-dot active"></div>Indexed</div></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon" title="Download">↓</button>
+                    <button class="btn-icon danger" title="Delete">×</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>solar_panel.txt</strong></td>
+                <td>82</td>
+                <td style="color:var(--text3);font-size:12px">Documentation about photovoltaic solar panels…</td>
+                <td style="color:var(--text3)">Mar 24</td>
+                <td><div class="status-cell"><div class="status-dot active"></div>Indexed</div></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon" title="Download">↓</button>
+                    <button class="btn-icon danger" title="Delete">×</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>contacts.txt</strong></td>
+                <td>24</td>
+                <td style="color:var(--text3);font-size:12px">Company employee directory with contacts…</td>
+                <td style="color:var(--text3)">Mar 24</td>
+                <td><div class="status-cell"><div class="status-dot active"></div>Indexed</div></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon" title="Download">↓</button>
+                    <button class="btn-icon danger" title="Delete">×</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SYSTEM PANEL ── -->
+    <div id="panel-system" class="panel">
+      <div class="page-header">
+        <div class="page-title">System</div>
+      </div>
+      <div id="content">
+        <div class="system-grid">
+          <div class="system-card">
+            <div class="system-card-title">🖥️ Server status</div>
+            <div class="system-row">
+              <span class="system-row-label">FastAPI</span>
+              <span class="system-row-value ok">Running · :8000</span>
+            </div>
+            <div class="system-row">
+              <span class="system-row-label">Ollama</span>
+              <span class="system-row-value ok" id="ollama-status">Connected</span>
+            </div>
+            <div class="system-row">
+              <span class="system-row-label">Embeddings model</span>
+              <span class="system-row-value ok">Loaded</span>
+            </div>
+          </div>
+
+          <div class="system-card">
+            <div class="system-card-title">🤖 Active model</div>
+            <div class="system-row">
+              <span class="system-row-label">Current model</span>
+              <span class="system-row-value" id="current-model">—</span>
+            </div>
+            <div class="system-row">
+              <span class="system-row-label">Available models</span>
+              <span class="system-row-value" id="model-count">—</span>
+            </div>
+          </div>
+
+          <div class="system-card">
+            <div class="system-card-title">📄 Knowledge base</div>
+            <div class="system-row">
+              <span class="system-row-label">Global RAGs</span>
+              <span class="system-row-value" id="sys-global-rags">—</span>
+            </div>
+            <div class="system-row">
+              <span class="system-row-label">Total chunks</span>
+              <span class="system-row-value" id="sys-total-chunks">—</span>
+            </div>
+          </div>
+
+          <div class="system-card">
+            <div class="system-card-title">👥 Users</div>
+            <div class="system-row">
+              <span class="system-row-label">Total</span>
+              <span class="system-row-value" id="sys-total-users">4</span>
+            </div>
+            <div class="system-row">
+              <span class="system-row-label">Active</span>
+              <span class="system-row-value ok" id="sys-active-users">3</span>
+            </div>
+            <div class="system-row">
+              <span class="system-row-label">Disabled</span>
+              <span class="system-row-value orange" id="sys-disabled-users">1</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── MODAL: NEW USER ── -->
+<div class="modal-overlay" id="modal-new-user">
+  <div class="modal">
+    <div class="modal-title">New User</div>
+    <div class="form-group">
+      <label class="form-label">Full name</label>
+      <input class="form-input" type="text" placeholder="e.g. Sofia Brandt">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" type="email" placeholder="user@company.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" placeholder="Temporary password">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-select">
+        <option value="user">User</option>
+        <option value="readonly">Read-only</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Workspace</label>
+      <select class="form-select">
+        <option value="">— No workspace —</option>
+        <option value="hr">Human Resources</option>
+        <option value="engineering">Engineering</option>
+        <option value="sales">Sales</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-new-user')">Cancel</button>
+      <button class="btn-primary" onclick="createUser()">Create user</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: NEW WORKSPACE ── -->
+<div class="modal-overlay" id="modal-new-ws">
+  <div class="modal">
+    <div class="modal-title">New Workspace</div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input class="form-input" type="text" placeholder="e.g. Finance, Legal, Support">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Icon</label>
+      <input class="form-input" type="text" placeholder="Emoji e.g. 💰 ⚖️ 🎧" maxlength="2">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-new-ws')">Cancel</button>
+      <button class="btn-primary" onclick="createWorkspace()">Create workspace</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = 'http://localhost:8000';
+
+  // ── NAVIGATION ──────────────────────────────────────────
+
+  function showPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+  }
+
+  // ── MODALS ──────────────────────────────────────────────
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('show');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('show');
+    });
+  });
+
+  // ── USER ACTIONS ────────────────────────────────────────
+
+  function filterUsers(q) {
+    const rows = document.querySelectorAll('#users-tbody tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(q.toLowerCase()) ? '' : 'none';
+    });
+  }
+
+  function impersonate(username) {
+    showToast(`Viewing as ${username} — read-only mode`, '');
+  }
+
+  function editUser(username) {
+    showToast(`Edit user: ${username}`, '');
+  }
+
+  function toggleUser(username, enable) {
+    const action = enable ? 'enabled' : 'disabled';
+    showToast(`User ${username} ${action}`, enable ? 'success' : '');
+  }
+
+  function createUser() {
+    closeModal('modal-new-user');
+    showToast('User created successfully', 'success');
+  }
+
+  function createWorkspace() {
+    closeModal('modal-new-ws');
+    showToast('Workspace created', 'success');
+  }
+
+  function logout() {
+    window.location.href = 'login.html';
+  }
+
+  // ── SYSTEM STATUS ───────────────────────────────────────
+
+  async function loadSystemStatus() {
+    try {
+      const res  = await fetch(`${API}/health`);
+      const data = await res.json();
+      document.getElementById('ollama-status').textContent  = 'Connected';
+      document.getElementById('current-model').textContent  = data.models?.[0] || '—';
+      document.getElementById('model-count').textContent    = data.models?.length + ' models' || '—';
+    } catch {
+      document.getElementById('ollama-status').textContent = 'Unreachable';
+      document.getElementById('ollama-status').className   = 'system-row-value warn';
+    }
+
+    try {
+      const res  = await fetch(`${API}/files`);
+      const data = await res.json();
+      const files  = data.files || [];
+      const chunks = files.reduce((sum, f) => sum + (f.chunks || 0), 0);
+      document.getElementById('sys-global-rags').textContent    = files.length + ' files';
+      document.getElementById('sys-total-chunks').textContent   = chunks + ' chunks';
+      document.getElementById('badge-rags').textContent         = files.length;
+    } catch {}
+  }
+
+  // ── TOAST ───────────────────────────────────────────────
+
+  let toastTimer;
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className   = 'show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+  }
+
+  // ── INIT ────────────────────────────────────────────────
+
+  loadSystemStatus();
+</script>
+
+</body>
+</html>

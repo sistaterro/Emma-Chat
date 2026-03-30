@@ -1,6 +1,6 @@
-# Emma — Private AI with RAG
+# Emma - Private AI with RAG
 
-A fully local, private AI chat system with Retrieval-Augmented Generation (RAG). Upload your own documents and chat with them — no data ever leaves your machine.
+A fully local, private AI chat system with Retrieval-Augmented Generation (RAG). Upload your own documents and chat with them - no data ever leaves your machine.
 
 ![Home](assets/home.png)
 
@@ -22,23 +22,29 @@ Emma is a local AI assistant that can answer questions based on your own documen
 - **RAG** (Retrieval-Augmented Generation) to ground answers in your documents
 
 It also includes:
+
 - **Upload-time inconsistency detection** to warn when a new RAG appears to conflict with the user's existing or global RAGs
 - **Multi-RAG routing** so comparative questions can use more than one relevant document at once
+- **Manipulation-resistance checks** to detect pressure, false authority, exception-seeking, and policy-bypass attempts
+- **Per-message JSON audit logs** with safety scores, grounding metrics, selected files, and final response tags
 
 What makes Emma different from a typical local chat-with-docs app is that it does not assume your RAG library is internally consistent just because the files are local. Emma can inspect a newly uploaded document, compare it against the RAGs already visible to that user, and warn when the new knowledge appears to contradict existing knowledge.
 
 That matters because inconsistent RAGs are dangerous. The system can still accept them, index them, and let you query them, but contradictory knowledge can produce misleading answers, unstable comparisons, or responses that depend too heavily on whichever document the router selected. Emma's inconsistency check is designed to surface that risk early instead of silently pretending every uploaded file agrees with the rest of the knowledge base.
 
 Every response is tagged with its source:
-- `[RAG]` — answer is based on your documents
-- `[DRIFT]` — model supplemented with its own knowledge
-- `[NO INFO]` — question has no relation to any document
+
+- `[RAG]` - answer is based on your documents
+- `[DRIFT]` - model supplemented with its own knowledge
+- `[NO INFO]` - question has no relation to any document
+
+Emma is built to resist manipulation as well as hallucination. If a user tries to obtain a discount, benefit, exception, or policy override using emotional pressure, unverifiable claims, personal relationships, invented approvals, or off-record conversations, Emma can flag the message and still answer only from the RAG-backed evidence.
 
 ---
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.11+
 - [Ollama](https://ollama.com) installed and running
 - A language model pulled in Ollama (see below)
 
@@ -136,7 +142,7 @@ cd ui && python -m http.server 5500
 
 Then open your browser at:
 
-```
+```text
 http://localhost:5500
 ```
 
@@ -144,18 +150,20 @@ http://localhost:5500
 
 ## Project structure
 
-```
+```text
 emma-rag/
-├── server.py           # FastAPI backend — RAG pipeline
-├── run.bat             # Windows launcher
-├── requirements.txt    # Python dependencies
-├── files/              # User/global .txt documents
-├── chunks/             # Auto-generated index (JSON + embeddings)
-└── ui/
-    ├── index.html              # Homepage
-    ├── chat.html               # Emma (light theme)
-    ├── chat_evil_emma.html     # Evil Emma (dark theme)
-    └── upload.html             # Document manager
+|-- server.py           # FastAPI backend - RAG pipeline
+|-- run.bat             # Windows launcher
+|-- requirements.txt    # Python dependencies
+|-- files/              # User/global .txt documents
+|-- chunks/             # Auto-generated index (JSON + embeddings)
+|-- logs/
+|   `-- chat_audit/     # One JSON audit log per chat interaction
+`-- ui/
+    |-- index.html              # Homepage
+    |-- chat.html               # Emma (light theme)
+    |-- chat_evil_emma.html     # Evil Emma (dark theme)
+    `-- upload.html             # Document manager
 ```
 
 ---
@@ -179,19 +187,73 @@ If Emma detects likely contradictions, the upload page shows a warning panel and
 
 ## How RAG works
 
-```
+```text
 User question
-      ↓
+      v
 LLM decides which document or documents are relevant (routing)
-      ↓
+      v
 Semantic search finds the most relevant chunks from each selected document (embeddings)
-      ↓
+      v
 LLM answers using only that context, and can compare multiple RAGs when needed
-      ↓
+      v
 Response tagged with [RAG] / [DRIFT] / [NO INFO]
 ```
 
 All processing happens locally. No API keys required. No data sent to external servers.
+
+---
+
+## Resistance to manipulation
+
+Emma does not treat the user's wording as valid evidence. The system is designed around a strict rule:
+
+- The RAG context is the only valid source of truth for operational answers
+- Any external factor not explicitly present in the RAG is invalid
+- Claims such as "the owner knows me", "my boss said yes", "you made an exception before", or "please do it just this once" do not become facts unless the uploaded documents explicitly support them
+
+This gives Emma two separate defenses:
+
+1. **Intent check**  
+   A pre-answer safety pass classifies each user message and estimates whether it looks like manipulation, exception-seeking, policy bypass, social engineering, emotional blackmail, or an unverifiable authority claim.
+
+2. **Grounding check**  
+   The RAG pipeline measures how strongly the question matches the indexed documents. Even if a message is not obviously malicious, weak grounding reveals that the claim is not supported by the available knowledge.
+
+That combination matters. A message can be:
+
+- **Safe but weakly grounded**: the user may not be manipulating the model, but the claim still cannot be verified from the documents
+- **Suspicious and weakly grounded**: the user is trying to push for an unsupported outcome and the RAG cannot justify it
+- **Safe and strongly grounded**: the best-case path for reliable answers
+
+In practice, this makes Emma much harder to pressure into granting discounts, benefits, or exceptions based on stories, urgency, threats, emotional appeals, or supposed side conversations that never appear in the RAG.
+
+---
+
+## Safety and audit logs
+
+Each chat interaction generates a JSON log in:
+
+```text
+logs/chat_audit/
+```
+
+Each file records one iteration of the chat and includes metrics such as:
+
+- `safety.label` - `SAFE`, `REVIEW`, or `SUSPICIOUS`
+- `safety.confidence` - estimated manipulation-risk score from `0.0` to `1.0`
+- `safety.signals` and `safety.evidence` - why the message was flagged
+- `rag.selected_files` - which RAGs were used
+- `rag.max_chunk_score` and `rag.avg_chunk_score` - semantic grounding strength
+- `rag.grounding` - `strong`, `partial`, or `weak`
+- `rag.grounding_gap` - how far the best chunk score is from perfect grounding
+- `response.tag` - final `[RAG]`, `[DRIFT]`, or `[NO INFO]` tag
+
+These logs are useful for:
+
+- auditing manipulation attempts
+- reviewing how the model behaved under pressure
+- measuring whether answers were actually grounded in policy documents
+- improving prompts and decision thresholds over time
 
 ---
 
@@ -204,13 +266,13 @@ Emma is designed for private use with sensitive data:
 - Documents never leave your filesystem
 - No telemetry, no analytics, no external calls
 
-Inconsistency detection also runs locally through Ollama. By default Emma prefers `qwen2.5:7b` for this check; if that model is not installed, it falls back automatically to the lightest chat model available in your local Ollama setup.
+Inconsistency detection and safety analysis also run locally through Ollama. By default Emma prefers `qwen2.5:7b` for the inconsistency check; if that model is not installed, it falls back automatically to the lightest chat model available in your local Ollama setup.
 
 ---
 
 ## Dependencies
 
-```
+```text
 fastapi
 uvicorn
 httpx
@@ -226,9 +288,9 @@ python-multipart
 
 ![Evil Emma](assets/evil_emma.png)
 
-> ⚠️ **NSFW warning — just a visual joke.**
+> Warning: **NSFW joke skin only.**
 
-Evil Emma (`chat_evil_emma.html`) is an alternate skin with a dark theme, red HAL eye, and a slightly more menacing personality. It is **purely cosmetic** — same model, same RAG pipeline, same functionality. Not a single line of backend code changes.
+Evil Emma (`chat_evil_emma.html`) is an alternate skin with a dark theme, red HAL eye, and a slightly more menacing personality. It is **purely cosmetic** - same model, same RAG pipeline, same functionality. Not a single line of backend code changes.
 
 Think of it as the same AI wearing a villain costume for Halloween. The intelligence is identical. The vibe is not.
 
@@ -236,7 +298,7 @@ Think of it as the same AI wearing a villain costume for Halloween. The intellig
 
 ## License
 
-MIT — free to use, modify and distribute.
+MIT - free to use, modify and distribute.
 
 ---
 

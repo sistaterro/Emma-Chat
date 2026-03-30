@@ -467,6 +467,22 @@
       }
     }
 
+
+
+
+    .card-admin::before {
+      background: linear-gradient(to right, transparent, var(--red), transparent);
+    }
+
+    .card-admin:hover {
+      border-color: rgba(255, 59, 48, 0.25);
+    }
+
+    .card-admin:hover::before {
+      opacity: 1;
+    }
+
+
     /* ── FOOTER ── */
     .page-footer {
       margin-top: 40px;
@@ -508,7 +524,10 @@
       text-decoration: underline;
       text-underline-offset: 2px;
     }
-    .logout-btn:hover { color: var(--text); }
+
+    .logout-btn:hover {
+      color: var(--text);
+    }
   </style>
 </head>
 
@@ -566,6 +585,14 @@
       <span class="card-arrow">→</span>
     </a>
 
+    <!-- ADMIN -->
+    <a class="card card-admin" href="admin.html" id="card-admin" style="display:none">
+      <span class="card-label">Administration</span>
+      <div class="docs-icon" style="background:#fff0ef; border-color:rgba(255,59,48,0.2);">⚙️</div>
+      <div class="card-title">Admin <span style="color:var(--red)">Panel</span></div>
+      <p class="card-desc">Manage users, workspaces, global RAGs and system status.</p>
+      <span class="card-arrow">→</span>
+    </a>
   </div>
 
   <div class="page-footer">
@@ -596,6 +623,9 @@
       }
       const user = await res.json();
       document.getElementById('usernameDisplay').textContent = user.username;
+      if (user.role === 'admin') {
+        document.getElementById('card-admin').style.display = 'flex';
+      }
     }
 
     async function logout() {
@@ -604,7 +634,7 @@
         await fetch(`${BASE_URL}/auth/logout`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
-        }).catch(() => {});
+        }).catch(() => { });
       }
       localStorage.removeItem('emma_token');
       localStorage.removeItem('emma_user');

@@ -1395,6 +1395,7 @@
 
       if (!conv || !conv.messages.length) {
         msgs.style.display = 'none';
+        msgs.innerHTML = '';
         empty.style.display = 'flex';
         title.textContent = 'New conversation';
         countTag.textContent = '';
@@ -1463,8 +1464,8 @@
       cc.textContent = len > 80 ? len : '';
     }
 
-    function sendSuggestion(btn) {
-      if (!state.activeId) newConversation();
+    async function sendSuggestion(btn) {
+      if (!state.activeId) await newConversation();
       document.getElementById('msgInput').value = btn.textContent;
       handleInput(); sendMessage();
     }

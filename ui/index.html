@@ -85,8 +85,10 @@
     /* ── GRID ── */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(3, 280px);
+      width: min(100%, 920px);
+      grid-template-columns: repeat(auto-fit, minmax(260px, 280px));
       gap: 20px;
+      justify-content: center;
     }
 
     /* ── CARD BASE ── */
@@ -528,6 +530,52 @@
     .logout-btn:hover {
       color: var(--text);
     }
+
+    @media (max-width: 980px) {
+      body {
+        justify-content: flex-start;
+        padding: 32px 20px 28px;
+      }
+
+      .page-header {
+        margin-bottom: 36px;
+      }
+
+      .card-grid {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 24px 16px 20px;
+      }
+
+      .page-header h1 {
+        font-size: 28px;
+      }
+
+      .page-header p {
+        font-size: 14px;
+      }
+
+      .card-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .card {
+        padding: 26px 22px;
+      }
+
+      .page-footer {
+        margin-top: 28px;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        text-align: center;
+      }
+    }
   </style>
 </head>
 
@@ -568,7 +616,7 @@
     </a>
 
     <!-- UPLOAD -->
-    <a class="card card-upload" href="upload.html">
+    <a class="card card-upload" href="upload.html" id="card-upload">
       <span class="card-label">Knowledge Base</span>
       <div class="upload-icon">📂</div>
       <div class="card-title">Upload <span>Files</span></div>
@@ -623,6 +671,11 @@
       }
       const user = await res.json();
       document.getElementById('usernameDisplay').textContent = user.username;
+      if (user.role !== 'read_only') {
+        document.getElementById('card-upload').style.display = 'flex';
+      } else {
+        document.getElementById('card-upload').style.display = 'none';
+      }
       if (user.role === 'admin') {
         document.getElementById('card-admin').style.display = 'flex';
       }

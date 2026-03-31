@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +35,7 @@ EMBED_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 INCONSISTENCY_MODEL = "qwen2.5:7b"
 DB_PATH          = Path("emma.db")
 LOGS_DIR         = Path("logs/chat_audit")
+VALID_ROLES      = {"admin", "user", "read_only"}
 
 GLOBAL_FILES_DIR  = Path("files/global")
 GLOBAL_CHUNKS_DIR = Path("chunks/global")
@@ -68,6 +69,21 @@ def get_db():
     return conn
 
 
+def normalize_role(role: str) -> str:
+    normalized = str(role or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized == "readonly":
+        normalized = "read_only"
+    if normalized not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Rol inválido")
+    return normalized
+
+
+def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_db():
     conn = get_db()
     conn.execute("""
@@ -76,6 +92,9 @@ def init_db():
             username      TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             role          TEXT NOT NULL DEFAULT 'user',
+            full_name     TEXT,
+            is_active     INTEGER NOT NULL DEFAULT 1,
+            last_login_at TEXT,
             created_at    TEXT NOT NULL
         )
     """)
@@ -108,6 +127,9 @@ def init_db():
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
     """)
+    ensure_column(conn, "users", "full_name", "TEXT")
+    ensure_column(conn, "users", "is_active", "INTEGER NOT NULL DEFAULT 1")
+    ensure_column(conn, "users", "last_login_at", "TEXT")
     conn.commit()
 
     # First use: crear admin
@@ -115,8 +137,8 @@ def init_db():
     if count == 0:
         hashed = hash_password("admin1234")
         conn.execute(
-            "INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, 'admin', ?)",
-            ("admin", hashed, datetime.utcnow().isoformat())
+            "INSERT INTO users (username, password_hash, role, full_name, is_active, created_at) VALUES (?, ?, 'admin', ?, 1, ?)",
+            ("admin", hashed, "Administrator", datetime.utcnow().isoformat())
         )
         conn.commit()
         print("[auth] Admin user created (first use) — user: admin / pass: admin1234")
@@ -140,6 +162,84 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
 
 
 # ── FILE PATHS ────────────────────────────────────────────
+
+async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    conn = get_db()
+    row = conn.execute(
+        "SELECT u.id, u.username, u.role, u.full_name, u.is_active FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ?",
+        (credentials.credentials,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if not row["is_active"]:
+        raise HTTPException(status_code=403, detail="Usuario deshabilitado")
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "full_name": row["full_name"] or row["username"],
+        "role": normalize_role(row["role"]),
+    }
+
+
+def require_admin(user: dict) -> None:
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo el admin puede realizar esta acción")
+
+
+def require_upload_access(user: dict) -> None:
+    if user["role"] == "read_only":
+        raise HTTPException(status_code=403, detail="Tu usuario no puede gestionar archivos")
+
+
+def get_user_row(user_id: int) -> sqlite3.Row | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id, username, full_name, role, is_active, created_at, last_login_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def serialize_user_row(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "full_name": row["full_name"] or row["username"],
+        "role": normalize_role(row["role"]),
+        "is_active": bool(row["is_active"]),
+        "created_at": row["created_at"],
+        "last_login_at": row["last_login_at"],
+    }
+
+
+def ensure_admin_survives(target_user_id: int, new_role: str | None = None, new_is_active: bool | None = None, deleting: bool = False) -> None:
+    row = get_user_row(target_user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    current_role = normalize_role(row["role"])
+    current_active = bool(row["is_active"])
+    resulting_role = normalize_role(new_role) if new_role is not None else current_role
+    resulting_active = new_is_active if new_is_active is not None else current_active
+    if deleting:
+        resulting_active = False
+    if current_role != "admin":
+        return
+    if resulting_role == "admin" and resulting_active:
+        return
+
+    conn = get_db()
+    active_admins = conn.execute(
+        "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1 AND id != ?",
+        (target_user_id,),
+    ).fetchone()[0]
+    conn.close()
+    if active_admins == 0:
+        raise HTTPException(status_code=400, detail="Debe existir al menos un admin activo")
+
 
 def user_files_dir(user_id: int) -> Path:
     p = Path(f"files/{user_id}")
@@ -205,6 +305,23 @@ def save_conflicts_to_index(base_dir: Path, stem: str, conflicts: dict) -> None:
 
 class LoginRequest(BaseModel):
     username: str
+    password: str
+
+
+class AdminUserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = "user"
+    full_name: Optional[str] = None
+
+
+class AdminUserUpdate(BaseModel):
+    role: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AdminPasswordReset(BaseModel):
     password: str
 
 class ConversationCreate(BaseModel):
@@ -1004,20 +1121,34 @@ async def startup():
 async def login(body: LoginRequest):
     conn = get_db()
     row  = conn.execute(
-        "SELECT id, password_hash, role FROM users WHERE username = ?", (body.username,)
+        "SELECT id, username, password_hash, role, full_name, is_active FROM users WHERE username = ?", (body.username,)
     ).fetchone()
     conn.close()
     if not row or not verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+    if not row["is_active"]:
+        raise HTTPException(status_code=403, detail="Usuario deshabilitado")
     token = secrets.token_urlsafe(32)
     conn  = get_db()
     conn.execute(
         "INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)",
         (token, row["id"], datetime.utcnow().isoformat())
     )
+    conn.execute(
+        "UPDATE users SET last_login_at = ? WHERE id = ?",
+        (datetime.utcnow().isoformat(), row["id"])
+    )
     conn.commit()
     conn.close()
-    return {"token": token, "user": {"id": row["id"], "username": body.username, "role": row["role"]}}
+    return {
+        "token": token,
+        "user": {
+            "id": row["id"],
+            "username": row["username"],
+            "full_name": row["full_name"] or row["username"],
+            "role": normalize_role(row["role"]),
+        }
+    }
 
 
 @app.post("/auth/logout")
@@ -1035,10 +1166,158 @@ async def logout(
 
 @app.get("/auth/me")
 async def me(user: dict = Depends(get_current_user)):
-    return {"id": user["id"], "username": user["username"], "role": user["role"]}
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+    }
 
 
 # ── HEALTH ───────────────────────────────────────────────
+
+def delete_user_storage(user_id: int) -> None:
+    for base in [Path(f"files/{user_id}"), Path(f"chunks/{user_id}")]:
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*"), reverse=True):
+            if path.is_file():
+                path.unlink(missing_ok=True)
+            elif path.is_dir():
+                path.rmdir()
+        base.rmdir()
+
+
+@app.get("/admin/users")
+async def admin_list_users(user: dict = Depends(get_current_user)):
+    require_admin(user)
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, username, full_name, role, is_active, created_at, last_login_at FROM users ORDER BY created_at ASC"
+    ).fetchall()
+    conn.close()
+    return {"users": [serialize_user_row(row) for row in rows]}
+
+
+@app.post("/admin/users")
+async def admin_create_user(body: AdminUserCreate, user: dict = Depends(get_current_user)):
+    require_admin(user)
+    username = body.username.strip()
+    password = body.password.strip()
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="El username debe tener al menos 3 caracteres")
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 4 caracteres")
+    role = normalize_role(body.role)
+    full_name = (body.full_name or "").strip() or username
+
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (username, password_hash, role, full_name, is_active, created_at) VALUES (?, ?, ?, ?, 1, ?)",
+            (username, hash_password(password), role, full_name, datetime.utcnow().isoformat())
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=409, detail="Ese username ya existe")
+    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row = conn.execute(
+        "SELECT id, username, full_name, role, is_active, created_at, last_login_at FROM users WHERE id = ?",
+        (new_id,)
+    ).fetchone()
+    conn.close()
+    return {"user": serialize_user_row(row)}
+
+
+@app.patch("/admin/users/{target_user_id}")
+async def admin_update_user(target_user_id: int, body: AdminUserUpdate, user: dict = Depends(get_current_user)):
+    require_admin(user)
+    row = get_user_row(target_user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    updates = []
+    values = []
+
+    if body.role is not None:
+        role = normalize_role(body.role)
+        ensure_admin_survives(target_user_id, new_role=role)
+        updates.append("role = ?")
+        values.append(role)
+    if body.is_active is not None:
+        ensure_admin_survives(target_user_id, new_is_active=body.is_active)
+        updates.append("is_active = ?")
+        values.append(1 if body.is_active else 0)
+    if body.full_name is not None:
+        updates.append("full_name = ?")
+        values.append(body.full_name.strip() or row["username"])
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No hay cambios para aplicar")
+
+    conn = get_db()
+    conn.execute(
+        f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+        (*values, target_user_id)
+    )
+    if body.is_active is False:
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (target_user_id,))
+    conn.commit()
+    updated = conn.execute(
+        "SELECT id, username, full_name, role, is_active, created_at, last_login_at FROM users WHERE id = ?",
+        (target_user_id,)
+    ).fetchone()
+    conn.close()
+    return {"user": serialize_user_row(updated)}
+
+
+@app.post("/admin/users/{target_user_id}/reset-password")
+async def admin_reset_password(target_user_id: int, body: AdminPasswordReset, user: dict = Depends(get_current_user)):
+    require_admin(user)
+    if len(body.password.strip()) < 4:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 4 caracteres")
+    row = get_user_row(target_user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET password_hash = ? WHERE id = ?",
+        (hash_password(body.password.strip()), target_user_id)
+    )
+    conn.execute("DELETE FROM sessions WHERE user_id = ?", (target_user_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+
+@app.delete("/admin/users/{target_user_id}")
+async def admin_delete_user(target_user_id: int, user: dict = Depends(get_current_user)):
+    require_admin(user)
+    if target_user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
+    row = get_user_row(target_user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    ensure_admin_survives(target_user_id, deleting=True)
+
+    conn = get_db()
+    conv_rows = conn.execute(
+        "SELECT id FROM conversations WHERE user_id = ?",
+        (target_user_id,)
+    ).fetchall()
+    conv_ids = [r["id"] for r in conv_rows]
+    if conv_ids:
+        placeholders = ",".join(["?"] * len(conv_ids))
+        conn.execute(f"DELETE FROM messages WHERE conversation_id IN ({placeholders})", conv_ids)
+    conn.execute("DELETE FROM conversations WHERE user_id = ?", (target_user_id,))
+    conn.execute("DELETE FROM sessions WHERE user_id = ?", (target_user_id,))
+    conn.execute("DELETE FROM users WHERE id = ?", (target_user_id,))
+    conn.commit()
+    conn.close()
+    delete_user_storage(target_user_id)
+    return {"status": "ok"}
+
 
 @app.get("/health")
 async def health(user: dict = Depends(get_current_user)):
@@ -1055,55 +1334,73 @@ async def health(user: dict = Depends(get_current_user)):
 
 # ── FILES ─────────────────────────────────────────────────
 
+def append_file_entries(result: list[dict], files_dir: Path, chunks_dir: Path, scope: str, owner_id: int | None = None, owner_username: str | None = None) -> None:
+    index = load_files_index(files_dir)
+    conflicts = load_conflicts_index(files_dir)
+    for txt_path in sorted(files_dir.glob("*.txt")):
+        stem      = txt_path.stem
+        json_path = chunks_dir / f"{stem}.json"
+        npy_path  = chunks_dir / f"{stem}.npy"
+        indexed   = json_path.exists() and npy_path.exists()
+        chunks    = 0
+        if indexed:
+            try:
+                data   = json.loads(json_path.read_text(encoding="utf-8"))
+                chunks = data.get("total", 0)
+            except Exception:
+                pass
+        result.append({
+            "name": txt_path.name,
+            "stem": stem,
+            "scope": scope,
+            "indexed": indexed,
+            "chunks": chunks,
+            "description": index.get(stem, ""),
+            "inconsistencies": conflicts.get(stem, {"has_any": False, "matches": []}),
+            "owner_id": owner_id,
+            "owner_username": owner_username,
+        })
+
+
+def resolve_target_user_id(user: dict, owner_id: int | None) -> int:
+    if owner_id is None:
+        return user["id"]
+    require_admin(user)
+    row = get_user_row(owner_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario objetivo no encontrado")
+    return owner_id
+
+
 @app.get("/files")
 async def list_files(user: dict = Depends(get_current_user)):
     result = []
 
     # Archivos globales
-    global_index = load_files_index(GLOBAL_FILES_DIR)
-    global_conflicts = load_conflicts_index(GLOBAL_FILES_DIR)
-    for txt_path in sorted(GLOBAL_FILES_DIR.glob("*.txt")):
-        stem      = txt_path.stem
-        json_path = GLOBAL_CHUNKS_DIR / f"{stem}.json"
-        npy_path  = GLOBAL_CHUNKS_DIR / f"{stem}.npy"
-        indexed   = json_path.exists() and npy_path.exists()
-        chunks    = 0
-        if indexed:
-            try:
-                data   = json.loads(json_path.read_text(encoding="utf-8"))
-                chunks = data.get("total", 0)
-            except Exception:
-                pass
-        result.append({
-            "name": txt_path.name, "stem": stem, "scope": "global",
-            "indexed": indexed, "chunks": chunks,
-            "description": global_index.get(stem, ""),
-            "inconsistencies": global_conflicts.get(stem, {"has_any": False, "matches": []}),
-        })
+    append_file_entries(result, GLOBAL_FILES_DIR, GLOBAL_CHUNKS_DIR, "global")
 
-    # Archivos del usuario
-    u_files  = user_files_dir(user["id"])
-    u_chunks = user_chunks_dir(user["id"])
-    u_index  = load_files_index(u_files)
-    u_conflicts = load_conflicts_index(u_files)
-    for txt_path in sorted(u_files.glob("*.txt")):
-        stem      = txt_path.stem
-        json_path = u_chunks / f"{stem}.json"
-        npy_path  = u_chunks / f"{stem}.npy"
-        indexed   = json_path.exists() and npy_path.exists()
-        chunks    = 0
-        if indexed:
-            try:
-                data   = json.loads(json_path.read_text(encoding="utf-8"))
-                chunks = data.get("total", 0)
-            except Exception:
-                pass
-        result.append({
-            "name": txt_path.name, "stem": stem, "scope": "user",
-            "indexed": indexed, "chunks": chunks,
-            "description": u_index.get(stem, ""),
-            "inconsistencies": u_conflicts.get(stem, {"has_any": False, "matches": []}),
-        })
+    if user["role"] == "admin":
+        conn = get_db()
+        rows = conn.execute("SELECT id, username FROM users ORDER BY id ASC").fetchall()
+        conn.close()
+        for row in rows:
+            append_file_entries(
+                result,
+                user_files_dir(row["id"]),
+                user_chunks_dir(row["id"]),
+                "user",
+                owner_id=row["id"],
+                owner_username=row["username"],
+            )
+    else:
+        append_file_entries(
+            result,
+            user_files_dir(user["id"]),
+            user_chunks_dir(user["id"]),
+            "user",
+            owner_id=user["id"],
+            owner_username=user["username"],
+        )
 
     return {"files": result}
 
@@ -1112,8 +1409,10 @@ async def list_files(user: dict = Depends(get_current_user)):
 async def upload_file(
     file: UploadFile = File(...),
     scope: str = "user",
+    owner_id: Optional[int] = Query(default=None),
     user: dict = Depends(get_current_user)
 ):
+    require_upload_access(user)
     if not file.filename.endswith(".txt"):
         raise HTTPException(status_code=400, detail="Solo se aceptan archivos .txt")
     if scope == "global" and user["role"] != "admin":
@@ -1123,8 +1422,9 @@ async def upload_file(
         dest_dir   = GLOBAL_FILES_DIR
         chunks_dir = GLOBAL_CHUNKS_DIR
     else:
-        dest_dir   = user_files_dir(user["id"])
-        chunks_dir = user_chunks_dir(user["id"])
+        target_user_id = resolve_target_user_id(user, owner_id)
+        dest_dir   = user_files_dir(target_user_id)
+        chunks_dir = user_chunks_dir(target_user_id)
 
     dest_dir.mkdir(parents=True, exist_ok=True)
     safe_name = re.sub(r'[^\w.]', '_', file.filename.strip()).lower()
@@ -1156,15 +1456,17 @@ async def upload_file(
 
 
 @app.delete("/files/{scope}/{stem}")
-async def delete_file(scope: str, stem: str, user: dict = Depends(get_current_user)):
+async def delete_file(scope: str, stem: str, owner_id: Optional[int] = Query(default=None), user: dict = Depends(get_current_user)):
+    require_upload_access(user)
     if scope == "global":
         if user["role"] != "admin":
             raise HTTPException(status_code=403, detail="Solo el admin puede eliminar archivos globales")
         files_dir  = GLOBAL_FILES_DIR
         chunks_dir = GLOBAL_CHUNKS_DIR
     else:
-        files_dir  = user_files_dir(user["id"])
-        chunks_dir = user_chunks_dir(user["id"])
+        target_user_id = resolve_target_user_id(user, owner_id)
+        files_dir  = user_files_dir(target_user_id)
+        chunks_dir = user_chunks_dir(target_user_id)
 
     deleted = []
     for path in [files_dir / f"{stem}.txt", chunks_dir / f"{stem}.json", chunks_dir / f"{stem}.npy"]:
@@ -1198,15 +1500,17 @@ async def delete_file(scope: str, stem: str, user: dict = Depends(get_current_us
 
 
 @app.delete("/files/{scope}")
-async def delete_all_files(scope: str, user: dict = Depends(get_current_user)):
+async def delete_all_files(scope: str, owner_id: Optional[int] = Query(default=None), user: dict = Depends(get_current_user)):
+    require_upload_access(user)
     if scope == "global":
         if user["role"] != "admin":
             raise HTTPException(status_code=403, detail="Solo el admin puede eliminar archivos globales")
         files_dir = GLOBAL_FILES_DIR
         chunks_dir = GLOBAL_CHUNKS_DIR
     elif scope == "user":
-        files_dir = user_files_dir(user["id"])
-        chunks_dir = user_chunks_dir(user["id"])
+        target_user_id = resolve_target_user_id(user, owner_id)
+        files_dir = user_files_dir(target_user_id)
+        chunks_dir = user_chunks_dir(target_user_id)
     else:
         raise HTTPException(status_code=400, detail="Scope inválido")
 
@@ -1226,11 +1530,13 @@ async def delete_all_files(scope: str, user: dict = Depends(get_current_user)):
 
 
 @app.get("/files/{scope}/{stem}/download")
-async def download_file(scope: str, stem: str, user: dict = Depends(get_current_user)):
+async def download_file(scope: str, stem: str, owner_id: Optional[int] = Query(default=None), user: dict = Depends(get_current_user)):
+    require_upload_access(user)
     if scope == "global":
         files_dir = GLOBAL_FILES_DIR
     else:
-        files_dir = user_files_dir(user["id"])
+        target_user_id = resolve_target_user_id(user, owner_id)
+        files_dir = user_files_dir(target_user_id)
 
     txt_path = files_dir / f"{stem}.txt"
     if not txt_path.exists():

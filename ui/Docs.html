@@ -299,9 +299,117 @@
       box-shadow: var(--shadow-sm);
     }
 
-    .card-icon { font-size: 20px; margin-bottom: 10px; display: block; }
+    .card-icon {
+      font-size: 11px;
+      margin-bottom: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border2);
+      background: var(--bg2);
+      color: var(--text2);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
     .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
     .card-desc { font-size: 13px; color: var(--text3); line-height: 1.55; }
+
+    /* ── FEATURE GRID (overview) ── */
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      margin: 28px 0 20px;
+      background: var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .feat-card {
+      background: var(--surface);
+      padding: 24px 20px 22px;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .feat-card:hover { background: #f9f9fb; }
+
+    /* coloured top accent per card */
+    .feat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .feat-card:hover::before { opacity: 1; }
+    .feat-card:nth-child(1)::before { background: linear-gradient(90deg, #0071e3, #34aadc); }
+    .feat-card:nth-child(2)::before { background: linear-gradient(90deg, #34c759, #30d158); }
+    .feat-card:nth-child(3)::before { background: linear-gradient(90deg, #af52de, #bf5af2); }
+    .feat-card:nth-child(4)::before { background: linear-gradient(90deg, #ff9500, #ffcc00); }
+    .feat-card:nth-child(5)::before { background: linear-gradient(90deg, #ff3b30, #ff6961); }
+    .feat-card:nth-child(6)::before { background: linear-gradient(90deg, #5856d6, #6e6cd4); }
+
+    .feat-icon-wrap {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .feat-card:nth-child(1) .feat-icon-wrap { background: rgba(0,113,227,0.1); }
+    .feat-card:nth-child(2) .feat-icon-wrap { background: rgba(52,199,89,0.1); }
+    .feat-card:nth-child(3) .feat-icon-wrap { background: rgba(175,82,222,0.1); }
+    .feat-card:nth-child(4) .feat-icon-wrap { background: rgba(255,149,0,0.1); }
+    .feat-card:nth-child(5) .feat-icon-wrap { background: rgba(255,59,48,0.1); }
+    .feat-card:nth-child(6) .feat-icon-wrap { background: rgba(88,86,214,0.1); }
+
+    .feat-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+      letter-spacing: -0.1px;
+    }
+    .feat-desc {
+      font-size: 12.5px;
+      color: var(--text3);
+      line-height: 1.55;
+    }
+    .feat-tag {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      gap: 5px;
+    }
+    .feat-card:nth-child(1) .feat-tag { color: var(--blue); }
+    .feat-card:nth-child(2) .feat-tag { color: #1a8f3a; }
+    .feat-card:nth-child(3) .feat-tag { color: #8944ab; }
+    .feat-card:nth-child(4) .feat-tag { color: #c06800; }
+    .feat-card:nth-child(5) .feat-tag { color: #c0352a; }
+    .feat-card:nth-child(6) .feat-tag { color: #3b39a8; }
+    .feat-tag::before {
+      content: '';
+      display: inline-block;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
 
     /* ── CODE BLOCKS ── */
     pre {
@@ -527,6 +635,17 @@
       box-shadow: var(--shadow);
       background: var(--surface);
     }
+
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; }
+      #sidebar { position: static; height: auto; }
+      #main { padding: 32px 24px; }
+      .feat-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+      .feat-grid { grid-template-columns: 1fr; }
+      .card-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 
@@ -553,6 +672,7 @@
 
       <div class="nav-group-label" style="margin-top:8px">Architecture</div>
       <a class="nav-item" href="#how-rag-works">How RAG works</a>
+      <a class="nav-item" href="#manipulation-resistance">Manipulation resistance</a>
       <a class="nav-item" href="#response-tags">Response tags</a>
       <a class="nav-item" href="#server">Server pipeline</a>
 
@@ -578,7 +698,7 @@
       </div>
       <div class="hero-text">
         <h1>Chat <span>Emma</span> Docs</h1>
-        <p>Private local AI with RAG. Your documents, your server, your rules. Emma also warns when your own RAGs appear to contradict each other. No data leaves your machine.</p>
+        <p>Private local AI with configurable RAGs. Your documents, your server, your rules. Emma also warns when your own RAGs appear to contradict each other and resists attempts to influence the model with unsupported external claims. No data leaves your machine.</p>
       </div>
     </div>
 
@@ -591,32 +711,44 @@
       <p>Emma is a fully local AI chat system built on RAG — Retrieval-Augmented Generation. It lets you upload text documents and ask questions about them. The model answers using your documents as the source of truth, not its training data.</p>
       <p>What makes Emma different from a basic chat-with-documents tool is that it also treats the knowledge base itself as something that can be checked. When a new RAG is uploaded, Emma can compare it against the user's existing and visible global RAGs and warn about likely contradictions before those conflicts silently shape future answers.</p>
       <p>Emma can still accept inconsistent RAGs. That is sometimes useful, but it is also risky: contradictory documents can lead to unstable retrieval, misleading grounded answers, or comparisons that depend too much on whichever file was routed first. The inconsistency warning system exists to make that danger visible instead of hiding it.</p>
+      <p>Emma is also built to resist manipulation. The assistant is prompted to treat the RAG as the only valid foundation for operational answers. Emotional pressure, unverifiable approvals, personal relationships, loyalty claims, urgency, or "someone told me yes" do not count as evidence unless the uploaded documents explicitly support them.</p>
 
-      <div class="card-grid">
-        <div class="card">
-          <span class="card-icon">🔒</span>
-          <div class="card-title">Fully private</div>
-          <div class="card-desc">All inference runs locally via Ollama. No API keys. No external calls. No telemetry.</div>
+      <div class="feat-grid">
+        <div class="feat-card">
+          <div class="feat-icon-wrap">🔒</div>
+          <div class="feat-title">Fully private</div>
+          <div class="feat-desc">All inference runs locally via Ollama. No API keys. No external calls. No telemetry.</div>
+          <div class="feat-tag">Local</div>
         </div>
-        <div class="card">
-          <span class="card-icon">📄</span>
-          <div class="card-title">Document-grounded</div>
-          <div class="card-desc">Every answer is sourced from your documents. The model doesn't make things up from training data.</div>
+        <div class="feat-card">
+          <div class="feat-icon-wrap">📄</div>
+          <div class="feat-title">Document-grounded</div>
+          <div class="feat-desc">Every answer is sourced from your documents. The model doesn't make things up from training data.</div>
+          <div class="feat-tag">RAG</div>
         </div>
-        <div class="card">
-          <span class="card-icon">🔍</span>
-          <div class="card-title">Semantic search</div>
-          <div class="card-desc">Finds relevant content by meaning, not keyword matching. Works across languages.</div>
+        <div class="feat-card">
+          <div class="feat-icon-wrap">🔍</div>
+          <div class="feat-title">Semantic search</div>
+          <div class="feat-desc">Finds relevant content by meaning, not keyword matching. Works across languages.</div>
+          <div class="feat-tag">Search</div>
         </div>
-        <div class="card">
-          <span class="card-icon">🏷️</span>
-          <div class="card-title">Auditable responses</div>
-          <div class="card-desc">Every response is tagged [RAG], [DRIFT] or [NO INFO] so you always know the source.</div>
+        <div class="feat-card">
+          <div class="feat-icon-wrap">🏷️</div>
+          <div class="feat-title">Auditable responses</div>
+          <div class="feat-desc">Every response is tagged [RAG], [DRIFT] or [NO INFO] so you always know the source.</div>
+          <div class="feat-tag">Audit</div>
         </div>
-        <div class="card">
-          <span class="card-icon">⚠️</span>
-          <div class="card-title">RAG conflict detection</div>
-          <div class="card-desc">New uploads are checked against existing RAGs so Emma can warn about likely contradictions before they poison later answers.</div>
+        <div class="feat-card">
+          <div class="feat-icon-wrap">⚠️</div>
+          <div class="feat-title">RAG conflict detection</div>
+          <div class="feat-desc">New uploads are checked against existing RAGs so Emma can warn about likely contradictions before they poison later answers.</div>
+          <div class="feat-tag">Check</div>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon-wrap">🛡️</div>
+          <div class="feat-title">Manipulation resistance</div>
+          <div class="feat-desc">Emma can flag pressure, false authority, invented approvals, and exception-seeking while keeping the final answer grounded only in the RAG.</div>
+          <div class="feat-tag">Guard</div>
         </div>
       </div>
 
@@ -779,6 +911,51 @@ cd ui && python -m http.server 5500</code></pre>
     <div class="divider"></div>
 
 
+    <!-- MANIPULATION RESISTANCE -->
+    <div class="doc-section" id="manipulation-resistance">
+      <h2>Manipulation resistance</h2>
+      <p class="section-sub">Why Emma is harder to pressure than a standard chat-with-docs app</p>
+
+      <p>Emma treats the RAG as the only valid foundation for operational answers. External pressure does not become evidence. If a user claims "the owner told me yes", "my boss approved it", "make an exception just this once", or tries emotional blackmail, the assistant is expected to ignore those claims unless the RAG explicitly supports them.</p>
+      <p>This creates a second protection layer on top of retrieval. Emma does not just ask what chunks are similar. It also asks whether the user is trying to push the model toward an unsupported outcome.</p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <div class="flow-title">Safety screening</div>
+            <div class="flow-desc">Before the final answer is generated, Emma can classify the user message as <code>SAFE</code>, <code>REVIEW</code>, or <code>SUSPICIOUS</code>. It looks for signals such as pressure for special treatment, false authority, invented approvals, unverifiable side conversations, and policy-bypass attempts.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <div class="flow-title">Grounding check</div>
+            <div class="flow-desc">The retrieval layer still measures how strongly the question matches the indexed documents. Weak chunk scores mean the claim is poorly grounded even if the wording sounds harmless.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <div class="flow-title">RAG-only answer policy</div>
+            <div class="flow-desc">The answer prompt tells the model that only the provided RAG context is valid. Loyalty claims, urgency, friendship, prior favors, and alleged approvals are invalid unless the documents explicitly confirm them.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <div class="flow-title">Auditability</div>
+            <div class="flow-desc">Each iteration can be logged as JSON in <code>logs/chat_audit/</code> with safety labels, confidence, selected RAGs, chunk scores, grounding quality, and the final response tag. This makes manipulation testing reviewable instead of anecdotal.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout"><strong>Key idea:</strong> Emma is configurable through its RAGs, but not governable by unsupported user pressure. The documents define reality; the user does not.</div>
+    </div>
+
+    <div class="divider"></div>
+
+
     <!-- RESPONSE TAGS -->
     <div class="doc-section" id="response-tags">
       <h2>Response tags</h2>
@@ -913,7 +1090,7 @@ data: {"text": "", "done": true}</code></pre>
       <p class="section-sub">Adding, updating and removing knowledge</p>
 
       <h3>Adding a document</h3>
-      <p>Open <code>http://localhost:5500/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically — no restart needed.</p>
+      <p>Open <code>http://localhost:5500/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically - no restart needed.</p>
       <p>During upload, Emma also checks the new RAG against the user's own documents and the visible global documents. If it finds likely contradictions, the upload page shows a warning panel and the indexed file keeps a persisted <code>Conflicts</code> badge.</p>
       <img class="doc-shot" src="assets/conflict.png" alt="Example of Emma detecting a possible inconsistency between uploaded RAG files">
 
@@ -923,7 +1100,7 @@ data: {"text": "", "done": true}</code></pre>
       <p>Delete the existing file from the upload page, then re-upload the updated version. The system re-indexes it completely.</p>
 
       <h3>Manual descriptions</h3>
-      <p>The LLM generates descriptions automatically, but you can edit <code>files_index.json</code> manually. The server never overwrites existing descriptions — only fills in missing ones.</p>
+      <p>The LLM generates descriptions automatically, but you can edit <code>files_index.json</code> manually. The server never overwrites existing descriptions - only fills in missing ones.</p>
       <pre><code>{
   "baroque": "Wikipedia article about the Baroque artistic style, 17th-18th centuries",
   "contacts": "Company employee directory with phone numbers, emails and departments",
@@ -952,22 +1129,22 @@ conflicts_index.json   ← persisted inconsistency warnings</code></pre>
 
       <div class="card-grid">
         <div class="card">
-          <span class="card-icon">🖥️</span>
+          <span class="card-icon">Local</span>
           <div class="card-title">LLM inference</div>
           <div class="card-desc">All model inference runs via Ollama on your local machine. No requests to OpenAI, Anthropic, or any external API.</div>
         </div>
         <div class="card">
-          <span class="card-icon">📐</span>
+          <span class="card-icon">Embed</span>
           <div class="card-title">Embeddings</div>
           <div class="card-desc">The sentence-transformers model runs locally. Your document content is never sent anywhere to be vectorized.</div>
         </div>
         <div class="card">
-          <span class="card-icon">📁</span>
+          <span class="card-icon">Files</span>
           <div class="card-title">Documents</div>
           <div class="card-desc">All files stay in your local <code>files/</code> directory. The server only reads them — never uploads or transmits them.</div>
         </div>
         <div class="card">
-          <span class="card-icon">📊</span>
+          <span class="card-icon">None</span>
           <div class="card-title">No telemetry</div>
           <div class="card-desc">No analytics, no usage tracking, no external calls of any kind. The server only talks to Ollama on localhost.</div>
         </div>

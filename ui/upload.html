@@ -994,8 +994,12 @@
       return (sev || 'medium').toUpperCase();
     }
 
-    function fileSelectionKey(scope, stem) {
-      return `${scope}:${stem}`;
+    function fileSelectionKey(scope, stem, ownerId = '') {
+      return `${scope}:${ownerId}:${stem}`;
+    }
+
+    function buildOwnerQuery(file) {
+      return file && file.scope === 'user' && file.owner_id ? `?owner_id=${encodeURIComponent(file.owner_id)}` : '';
     }
 
     function updateSelectionActions() {
@@ -1026,15 +1030,15 @@
       }
     }
 
-    function toggleIndexedSelection(scope, stem, checked) {
-      const key = fileSelectionKey(scope, stem);
+    function toggleIndexedSelection(scope, stem, checked, ownerId = '') {
+      const key = fileSelectionKey(scope, stem, ownerId);
       if (checked) selectedIndexed.add(key);
       else selectedIndexed.delete(key);
       updateSelectionActions();
     }
 
     function selectAllIndexed() {
-      selectedIndexed = new Set(indexedFilesCache.map(f => fileSelectionKey(f.scope, f.stem)));
+      selectedIndexed = new Set(indexedFilesCache.map(f => fileSelectionKey(f.scope, f.stem, f.owner_id || '')));
       renderIndexed(indexedFilesCache);
       updateSelectionActions();
     }
@@ -1159,7 +1163,7 @@
         if (!res.ok) return;
         const data = await res.json();
         indexedFilesCache = data.files || [];
-        const validKeys = new Set(indexedFilesCache.map(f => fileSelectionKey(f.scope, f.stem)));
+        const validKeys = new Set(indexedFilesCache.map(f => fileSelectionKey(f.scope, f.stem, f.owner_id || '')));
         selectedIndexed = new Set([...selectedIndexed].filter(key => validKeys.has(key)));
         syncAlertsFromIndexed(data.files || []);
         renderIndexed(data.files || []);
@@ -1194,18 +1198,22 @@
         const scopeBadge = f.scope === 'global'
           ? `<span style="font-size:10px;background:#e8f1fb;color:#0071e3;border-radius:4px;padding:1px 6px;font-weight:600;">GLOBAL</span>`
           : `<span style="font-size:10px;background:#f0faf3;color:#34c759;border-radius:4px;padding:1px 6px;font-weight:600;">MINE</span>`;
+        const ownerMeta = f.scope === 'user' && currentUser && currentUser.role === 'admin' && f.owner_username
+          ? escHtml(f.owner_username)
+          : '';
         const canDelete = f.scope === 'user' || (currentUser && currentUser.role === 'admin');
         const hasConflicts = !!(f.inconsistencies && f.inconsistencies.has_any);
         const conflictCount = hasConflicts
           ? (f.inconsistencies.matches || []).reduce((sum, m) => sum + ((m.items || []).length || 0), 0)
           : 0;
-        const selected = selectedIndexed.has(fileSelectionKey(f.scope, f.stem));
+        const selected = selectedIndexed.has(fileSelectionKey(f.scope, f.stem, f.owner_id || ''));
         return `
         <div class="file-item" id="indexed-${f.scope}-${f.stem}">
-          <input class="file-check" type="checkbox" ${selected ? 'checked' : ''} onchange="toggleIndexedSelection('${f.scope}','${f.stem}', this.checked)" title="Select">
+          <input class="file-check" type="checkbox" ${selected ? 'checked' : ''} onchange="toggleIndexedSelection('${f.scope}','${f.stem}', this.checked, '${f.owner_id || ''}')" title="Select">
           <div class="file-icon">📄</div>
           <div class="file-info">
             <div class="file-name">${escHtml(f.name)} ${scopeBadge}</div>
+            ${ownerMeta ? `<div class="file-meta" style="margin-top:2px">Owner: ${ownerMeta}</div>` : ''}
             <div class="file-meta">
               ${f.chunks} chunks · ${escHtml(f.description || 'No description')}
               ${hasConflicts ? `<span class="alert-tag sev-medium" style="margin-left:8px">CONFLICTS ${conflictCount}</span>` : ''}
@@ -1223,10 +1231,15 @@
       }).join('');
     }
 
-    async function deleteFile(scope, stem) {
+    async function deleteFile(scope, stem, ownerId = null) {
       if (!confirm(`Delete "${stem}" and all its indexed data?`)) return;
       try {
-        const res = await authFetch(`/files/${scope}/${encodeURIComponent(stem)}`, { method: 'DELETE' });
+        if (!ownerId) {
+          const match = indexedFilesCache.find(f => f.scope === scope && f.stem === stem);
+          ownerId = match && match.owner_id ? match.owner_id : null;
+        }
+        const suffix = ownerId ? `?owner_id=${encodeURIComponent(ownerId)}` : '';
+        const res = await authFetch(`/files/${scope}/${encodeURIComponent(stem)}${suffix}`, { method: 'DELETE' });
         if (res.ok) {
           document.getElementById(`indexed-${scope}-${stem}`)?.remove();
           showToast(`"${stem}" eliminado`, 'success');
@@ -1256,13 +1269,14 @@
     }
 
     async function deleteSelectedFiles() {
-      const selectedFiles = indexedFilesCache.filter(f => selectedIndexed.has(fileSelectionKey(f.scope, f.stem)));
+      const selectedFiles = indexedFilesCache.filter(f => selectedIndexed.has(fileSelectionKey(f.scope, f.stem, f.owner_id || '')));
       if (!selectedFiles.length) return;
       if (!confirm(`Delete ${selectedFiles.length} selected RAG${selectedFiles.length > 1 ? 's' : ''}?`)) return;
       let deleted = 0;
       for (const file of selectedFiles) {
         try {
-          const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}`, { method: 'DELETE' });
+          const suffix = file.owner_id ? `?owner_id=${encodeURIComponent(file.owner_id)}` : '';
+          const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}${suffix}`, { method: 'DELETE' });
           if (res.ok) deleted++;
         } catch (_) { }
       }
@@ -1273,11 +1287,12 @@
     }
 
     async function downloadSelectedFiles() {
-      const selectedFiles = indexedFilesCache.filter(f => selectedIndexed.has(fileSelectionKey(f.scope, f.stem)));
+      const selectedFiles = indexedFilesCache.filter(f => selectedIndexed.has(fileSelectionKey(f.scope, f.stem, f.owner_id || '')));
       if (!selectedFiles.length) return;
       for (const file of selectedFiles) {
         try {
-          const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}/download`);
+          const suffix = file.owner_id ? `?owner_id=${encodeURIComponent(file.owner_id)}` : '';
+          const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}/download${suffix}`);
           if (!res.ok) continue;
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
@@ -1294,6 +1309,35 @@
     }
 
     // ── UTILS ──────────────────────────────────────────────
+
+    document.addEventListener('click', async (e) => {
+      const link = e.target.closest('a.file-remove[download]');
+      if (!link) return;
+      const item = link.closest('.file-item');
+      if (!item || !item.id.startsWith('indexed-')) return;
+      e.preventDefault();
+      const parts = item.id.replace('indexed-', '').split('-');
+      const scope = parts.shift();
+      const stem = parts.join('-');
+      const file = indexedFilesCache.find(f => f.scope === scope && f.stem === stem);
+      if (!file) return;
+      try {
+        const suffix = file.owner_id ? `?owner_id=${encodeURIComponent(file.owner_id)}` : '';
+        const res = await authFetch(`/files/${file.scope}/${encodeURIComponent(file.stem)}/download${suffix}`);
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (_) {
+        showToast('Error downloading file', 'error');
+      }
+    });
 
     function escHtml(s) {
       return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1316,6 +1360,10 @@
       const res = await fetch(`${BASE_URL}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null);
       if (!res || !res.ok) { localStorage.removeItem('emma_token'); window.location.href = '/ui/login.html'; return; }
       currentUser = await res.json();
+      if (currentUser.role === 'read_only') {
+        window.location.href = '/ui/index.html';
+        return;
+      }
 
       // Mostrar usuario y logout en sidebar si existe
       const userEl = document.getElementById('currentUser');

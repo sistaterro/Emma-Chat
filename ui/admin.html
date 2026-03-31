@@ -822,8 +822,8 @@
 
     <div class="sidebar-footer">
       <div class="footer-user">
-        <div class="footer-name">Admin</div>
-        <div class="footer-role">Administrator</div>
+        <div class="footer-name" id="footerName">Admin</div>
+        <div class="footer-role" id="footerRole">Administrator</div>
       </div>
       <button class="btn-logout" title="Logout" onclick="logout()">⏻</button>
     </div>
@@ -1036,7 +1036,7 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="rags-tbody">
               <tr>
                 <td><strong>baroque.txt</strong></td>
                 <td>127</td>
@@ -1157,21 +1157,21 @@
     <div class="modal-title">New User</div>
     <div class="form-group">
       <label class="form-label">Full name</label>
-      <input class="form-input" type="text" placeholder="e.g. Sofia Brandt">
+      <input class="form-input" id="newUserFullName" type="text" placeholder="e.g. Sofia Brandt">
     </div>
     <div class="form-group">
-      <label class="form-label">Email</label>
-      <input class="form-input" type="email" placeholder="user@company.com">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="newUserUsername" type="text" placeholder="e.g. sofia">
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" type="password" placeholder="Temporary password">
+      <input class="form-input" id="newUserPassword" type="password" placeholder="Temporary password">
     </div>
     <div class="form-group">
       <label class="form-label">Role</label>
-      <select class="form-select">
+      <select class="form-select" id="newUserRole">
         <option value="user">User</option>
-        <option value="readonly">Read-only</option>
+        <option value="read_only">Read-only</option>
         <option value="admin">Admin</option>
       </select>
     </div>
@@ -1318,5 +1318,317 @@
   loadSystemStatus();
 </script>
 
+<script>
+  (() => {
+    const API = 'http://localhost:8000';
+    let currentUser = null;
+    let usersCache = [];
+
+    function getToken() {
+      return localStorage.getItem('emma_token');
+    }
+
+    async function authFetch(path, options = {}) {
+      const token = getToken();
+      if (!options.headers) options.headers = {};
+      if (token) options.headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(API + path, options);
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('emma_token');
+        localStorage.removeItem('emma_user');
+        window.location.href = '/ui/login.html';
+        throw new Error('Unauthorized');
+      }
+      return res;
+    }
+
+    function escHtml(s = '') {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatRole(role) {
+      return role === 'read_only' ? 'Read-only' : role.charAt(0).toUpperCase() + role.slice(1);
+    }
+
+    function roleClass(role) {
+      return role === 'read_only' ? 'role-readonly' : `role-${role}`;
+    }
+
+    function formatLastLogin(value) {
+      if (!value) return 'Never';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    }
+
+    function showPanel(name, el) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      if (el) el.classList.add('active');
+    }
+
+    document.querySelectorAll('.nav-item[onclick^="showPanel"]').forEach(item => {
+      const match = item.getAttribute('onclick').match(/showPanel\('([^']+)'\)/);
+      if (!match) return;
+      item.removeAttribute('onclick');
+      item.addEventListener('click', () => showPanel(match[1], item));
+    });
+
+    function renderUsers(users) {
+      const tbody = document.getElementById('users-tbody');
+      tbody.innerHTML = users.map(u => {
+        const initial = (u.full_name || u.username || '?').trim().charAt(0).toUpperCase();
+        const activeLabel = u.is_active ? 'Active' : 'Disabled';
+        const activeClass = u.is_active ? 'active' : 'disabled';
+        const canDelete = currentUser && currentUser.id !== u.id;
+        return `
+          <tr>
+            <td>
+              <div class="user-cell">
+                <div class="avatar">${escHtml(initial)}</div>
+                <div>
+                  <div class="user-name">${escHtml(u.full_name || u.username)}</div>
+                  <div class="user-email">${escHtml(u.username)}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="role-badge ${roleClass(u.role)}">${formatRole(u.role)}</span></td>
+            <td>—</td>
+            <td><div class="status-cell"><div class="status-dot ${activeClass}"></div>${activeLabel}</div></td>
+            <td>${escHtml(formatLastLogin(u.last_login_at))}</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn-icon" title="Edit" onclick="window.__emmaAdmin.editUser('${escHtml(u.username)}')">✏️</button>
+                <button class="btn-icon" title="Reset password" onclick="window.__emmaAdmin.resetPassword('${escHtml(u.username)}')">🔑</button>
+                ${canDelete ? `<button class="btn-icon danger" title="${u.is_active ? 'Disable' : 'Enable'}" onclick="window.__emmaAdmin.toggleUser('${escHtml(u.username)}', ${u.is_active ? 'false' : 'true'})">${u.is_active ? '🚫' : '✅'}</button>` : ''}
+                ${canDelete ? `<button class="btn-icon danger" title="Delete" onclick="window.__emmaAdmin.deleteUser('${escHtml(u.username)}')">🗑</button>` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const total = users.length;
+      const admins = users.filter(u => u.role === 'admin').length;
+      const active = users.filter(u => u.is_active).length;
+      const disabled = total - active;
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-admins').textContent = admins;
+      document.getElementById('stat-active').textContent = active;
+      document.getElementById('stat-disabled').textContent = disabled;
+      document.getElementById('badge-users').textContent = total;
+      document.getElementById('sys-total-users').textContent = total;
+      document.getElementById('sys-active-users').textContent = active;
+      document.getElementById('sys-disabled-users').textContent = disabled;
+    }
+
+    function renderRags(files) {
+      const tbody = document.getElementById('rags-tbody');
+      const globalFiles = (files || []).filter(f => f.scope === 'global');
+      tbody.innerHTML = globalFiles.map(f => `
+        <tr>
+          <td><strong>${escHtml(f.name)}</strong></td>
+          <td>${f.chunks || 0}</td>
+          <td style="color:var(--text3);font-size:12px">${escHtml(f.description || 'No description')}</td>
+          <td style="color:var(--text3)">—</td>
+          <td><div class="status-cell"><div class="status-dot ${f.indexed ? 'active' : 'disabled'}"></div>${f.indexed ? 'Indexed' : 'Pending'}</div></td>
+          <td><div class="row-actions"><button class="btn-icon danger" title="Delete" onclick="window.__emmaAdmin.deleteGlobalRag('${escHtml(f.stem)}')">×</button></div></td>
+        </tr>
+      `).join('');
+      document.getElementById('sys-global-rags').textContent = `${globalFiles.length} files`;
+      document.getElementById('badge-rags').textContent = globalFiles.length;
+      document.getElementById('sys-total-chunks').textContent = `${globalFiles.reduce((sum, f) => sum + (f.chunks || 0), 0)} chunks`;
+    }
+
+    async function loadUsers() {
+      const res = await authFetch('/admin/users');
+      const data = await res.json();
+      usersCache = data.users || [];
+      renderUsers(usersCache);
+    }
+
+    async function loadSystemStatus() {
+      try {
+        const res = await authFetch('/health');
+        const data = await res.json();
+        document.getElementById('ollama-status').textContent = 'Connected';
+        document.getElementById('current-model').textContent = data.models?.[0] || '—';
+        document.getElementById('model-count').textContent = data.models?.length ? `${data.models.length} models` : '—';
+      } catch {
+        document.getElementById('ollama-status').textContent = 'Unreachable';
+        document.getElementById('ollama-status').className = 'system-row-value warn';
+      }
+
+      try {
+        const res = await authFetch('/files');
+        const data = await res.json();
+        renderRags(data.files || []);
+      } catch {}
+    }
+
+    window.filterUsers = function filterUsers(q) {
+      const search = q.toLowerCase();
+      renderUsers(usersCache.filter(u =>
+        (u.username || '').toLowerCase().includes(search) ||
+        (u.full_name || '').toLowerCase().includes(search) ||
+        (u.role || '').toLowerCase().includes(search)
+      ));
+    };
+
+    window.createUser = async function createUser() {
+      const username = document.getElementById('newUserUsername').value.trim();
+      const password = document.getElementById('newUserPassword').value;
+      const fullName = document.getElementById('newUserFullName').value.trim();
+      const role = document.getElementById('newUserRole').value;
+      if (!username || !password) {
+        showToast('Username and password are required', 'error');
+        return;
+      }
+      const res = await authFetch('/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, full_name: fullName, role }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.detail || 'Could not create user', 'error');
+        return;
+      }
+      document.getElementById('newUserUsername').value = '';
+      document.getElementById('newUserPassword').value = '';
+      document.getElementById('newUserFullName').value = '';
+      document.getElementById('newUserRole').value = 'user';
+      closeModal('modal-new-user');
+      await loadUsers();
+      showToast('User created successfully', 'success');
+    };
+
+    window.__emmaAdmin = {
+      editUser: async (username) => {
+        const user = usersCache.find(u => u.username === username);
+        if (!user) return;
+        const fullName = prompt('Full name', user.full_name || user.username);
+        if (fullName === null) return;
+        const role = prompt('Role: admin, user, read_only', user.role);
+        if (role === null) return;
+        const res = await authFetch(`/admin/users/${user.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: fullName, role }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.detail || 'Could not update user', 'error');
+          return;
+        }
+        await loadUsers();
+        showToast(`Updated ${username}`, 'success');
+      },
+      toggleUser: async (username, enable) => {
+        const user = usersCache.find(u => u.username === username);
+        if (!user) return;
+        const res = await authFetch(`/admin/users/${user.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: enable }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.detail || 'Could not update user', 'error');
+          return;
+        }
+        await loadUsers();
+        showToast(`User ${username} ${enable ? 'enabled' : 'disabled'}`, enable ? 'success' : '');
+      },
+      resetPassword: async (username) => {
+        const user = usersCache.find(u => u.username === username);
+        if (!user) return;
+        const password = prompt(`New password for ${username}`);
+        if (password === null) return;
+        const res = await authFetch(`/admin/users/${user.id}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.detail || 'Could not reset password', 'error');
+          return;
+        }
+        showToast(`Password reset for ${username}`, 'success');
+      },
+      deleteUser: async (username) => {
+        const user = usersCache.find(u => u.username === username);
+        if (!user || !confirm(`Delete user ${username} and all related data?`)) return;
+        const res = await authFetch(`/admin/users/${user.id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.detail || 'Could not delete user', 'error');
+          return;
+        }
+        await loadUsers();
+        await loadSystemStatus();
+        showToast(`Deleted ${username}`, 'success');
+      },
+      deleteGlobalRag: async (stem) => {
+        if (!confirm(`Delete global RAG "${stem}"?`)) return;
+        const res = await authFetch(`/files/global/${encodeURIComponent(stem)}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.detail || 'Could not delete global RAG', 'error');
+          return;
+        }
+        await loadSystemStatus();
+        showToast(`Deleted ${stem}`, 'success');
+      }
+    };
+
+    window.createWorkspace = function createWorkspace() {
+      closeModal('modal-new-ws');
+      showToast('Workspaces remain mock for now', '');
+    };
+
+    window.logout = async function logout() {
+      const token = getToken();
+      if (token) {
+        await fetch(`${API}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => {});
+      }
+      localStorage.removeItem('emma_token');
+      localStorage.removeItem('emma_user');
+      window.location.href = '/ui/login.html';
+    };
+
+    let toastTimer;
+    window.showToast = function showToast(msg, type = '') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'show' + (type ? ' ' + type : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+    };
+
+    (async () => {
+      const token = getToken();
+      if (!token) {
+        window.location.href = '/ui/login.html';
+        return;
+      }
+      const res = await authFetch('/auth/me').catch(() => null);
+      if (!res || !res.ok) return;
+      currentUser = await res.json();
+      if (currentUser.role !== 'admin') {
+        window.location.href = '/ui/index.html';
+        return;
+      }
+      document.getElementById('footerName').textContent = currentUser.full_name || currentUser.username;
+      document.getElementById('footerRole').textContent = 'Administrator';
+      await loadUsers();
+      await loadSystemStatus();
+    })();
+  })();
+</script>
 </body>
 </html>

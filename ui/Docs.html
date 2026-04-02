@@ -708,10 +708,11 @@
       <h2>Overview</h2>
       <p class="section-sub">What Emma is and what it does</p>
 
-      <p>Emma is a fully local AI chat system built on RAG — Retrieval-Augmented Generation. It lets you upload text documents and ask questions about them. The model answers using your documents as the source of truth, not its training data.</p>
+      <p>Emma is a fully local AI chat system built on RAG — Retrieval-Augmented Generation. It lets authenticated users upload text documents, manage access by role, and ask grounded questions against local knowledge. The model answers using available documents as the source of truth, not its training data.</p>
       <p>What makes Emma different from a basic chat-with-documents tool is that it also treats the knowledge base itself as something that can be checked. When a new RAG is uploaded, Emma can compare it against the user's existing and visible global RAGs and warn about likely contradictions before those conflicts silently shape future answers.</p>
       <p>Emma can still accept inconsistent RAGs. That is sometimes useful, but it is also risky: contradictory documents can lead to unstable retrieval, misleading grounded answers, or comparisons that depend too much on whichever file was routed first. The inconsistency warning system exists to make that danger visible instead of hiding it.</p>
       <p>Emma is also built to resist manipulation. The assistant is prompted to treat the RAG as the only valid foundation for operational answers. Emotional pressure, unverifiable approvals, personal relationships, loyalty claims, urgency, or "someone told me yes" do not count as evidence unless the uploaded documents explicitly support them.</p>
+      <p>Access is role-based. <code>admin</code> can manage users and all RAGs, <code>user</code> can manage only their own <code>mine</code> RAGs, and <code>read_only</code> can use chat but cannot access upload.</p>
 
       <div class="feat-grid">
         <div class="feat-card">
@@ -808,24 +809,24 @@ pip install -r requirements.txt</code></pre>
     <!-- RUNNING -->
     <div class="doc-section" id="running">
       <h2>Running Emma</h2>
-      <p class="section-sub">Two servers, one command</p>
+      <p class="section-sub">FastAPI serves both API and UI</p>
 
       <h3>Windows</h3>
       <pre><code>run.bat</code></pre>
 
       <h3>Mac / Linux</h3>
       <pre><code>source .venv/bin/activate
-uvicorn server:app --reload --port 8000 &
-cd ui && python -m http.server 5500</code></pre>
+uvicorn server:app --reload --port 8000</code></pre>
 
-      <p>Then open <code>http://localhost:5500</code> in your browser.</p>
+      <p>Then open <code>http://localhost:8000/ui/login.html</code> in your browser.</p>
+
+      <div class="callout"><strong>Windows note:</strong> <code>run.bat</code> validates the local virtual environment, checks core dependencies, warns if Ollama is unavailable, waits for FastAPI to respond, and only then opens the browser.</div>
 
       <div class="fn-table-wrap">
         <table class="fn-table">
           <thead><tr><th>Port</th><th>What runs there</th></tr></thead>
           <tbody>
-            <tr><td>:8000</td><td>FastAPI backend — RAG pipeline, file management, chat API</td></tr>
-            <tr><td>:5500</td><td>Static file server — serves all HTML interfaces</td></tr>
+            <tr><td>:8000</td><td>FastAPI backend and static UI — auth, admin, chat, conversations, file management, docs</td></tr>
             <tr><td>:11434</td><td>Ollama — LLM inference (started separately)</td></tr>
           </tbody>
         </table>
@@ -1014,7 +1015,7 @@ cd ui && python -m http.server 5500</code></pre>
             <tr><td>is_quality_chunk()</td><td>Language-agnostic filter. Discards chunks with too few unique words, repeated lines, high digit density, or duplicated halves.</td></tr>
             <tr><td>chunk_text()</td><td>Splits document by double newlines. Merges short paragraphs until minimum word count is reached. Applies quality filter before saving.</td></tr>
             <tr><td>generate_description()</td><td>Sends first 2000 chars to LLM, returns a one-sentence description of the document.</td></tr>
-            <tr><td>save_description()</td><td>Writes description to files_index.json. Never overwrites manually-set descriptions.</td></tr>
+            <tr><td>save_description_to_index()</td><td>Writes descriptions to <code>files_index.json</code> and skips orphaned files that no longer exist.</td></tr>
             <tr><td>process_file()</td><td>Full ingestion pipeline: chunk → embed → save JSON + NPY → generate description.</td></tr>
             <tr><td>sync_files()</td><td>Runs at startup. Processes any files in files/ that don't have a corresponding index yet.</td></tr>
             <tr><td>detect_rag_inconsistencies()</td><td>Shortlists similar documents and asks an LLM to find likely contradictions before persisting warnings to conflicts_index.json.</td></tr>
@@ -1030,7 +1031,7 @@ cd ui && python -m http.server 5500</code></pre>
             <tr><td>cosine_similarity()</td><td>Computes dot product between normalized vectors. Score of 1.0 = identical meaning, 0.0 = unrelated.</td></tr>
             <tr><td>retrieve_chunks()</td><td>Vectorizes the question, computes similarity against all chunk vectors, returns top K chunks per selected document.</td></tr>
             <tr><td>route_to_files()</td><td>First LLM call. Given the file list with descriptions and the question, returns up to three relevant files instead of forcing a single document.</td></tr>
-            <tr><td>build_rag_prompt()</td><td>Assembles the final prompt with source-tagged chunks so the model can answer or compare across multiple RAGs.</td></tr>
+            <tr><td>prompts.py builders</td><td>Prompt text is centralized in <code>prompts.py</code> through pure builder functions for safety, routing, indexing, and RAG responses.</td></tr>
             <tr><td>fix_tag()</td><td>If RAG is active and the model used the wrong tag, replaces it with [RAG] before sending to the frontend.</td></tr>
           </tbody>
         </table>
@@ -1047,27 +1048,48 @@ cd ui && python -m http.server 5500</code></pre>
 
       <h3>Health check</h3>
       <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/health</span></div>
-      <p>Checks if Ollama is reachable. Returns status and list of available models. Used by the frontend to populate the model selector and show the connection indicator.</p>
+      <p>Checks if Ollama is reachable. Returns status and list of available models. Used by the frontend to populate the model selector and show the connection indicator. Requires authentication.</p>
+
+      <h3>Authentication</h3>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/auth/login</span></div>
+      <p>Creates a bearer-token session for a valid user.</p>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/auth/logout</span></div>
+      <p>Invalidates the current session token.</p>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/auth/me</span></div>
+      <p>Returns the authenticated user profile, including role and active status.</p>
+
+      <h3>Admin users</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/admin/users</span></div>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/admin/users</span></div>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/admin/users/{id}/reset-password</span></div>
+      <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/admin/users/{id}</span></div>
+      <p>Admin-only endpoints for user management. Admins can create users, update role and active state, reset passwords, and delete users with related local storage.</p>
 
       <h3>List files</h3>
       <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files</span></div>
-      <p>Returns all documents in <code>files/</code> with their indexing status, chunk count, description, and any persisted inconsistency warnings.</p>
+      <p>Returns visible documents with their indexing status, chunk count, description, ownership, and any persisted inconsistency warnings.</p>
 
       <h3>Upload file</h3>
       <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/upload</span></div>
-      <p>Accepts a <code>.txt</code> file via multipart form. Saves it to <code>files/</code>, runs inconsistency detection against visible RAGs, persists any warnings, and triggers the indexing pipeline in the background.</p>
+      <p>Accepts a <code>.txt</code> file via multipart form. Saves it to the correct user or global scope, runs inconsistency detection against visible RAGs, persists any warnings, and triggers the indexing pipeline in the background.</p>
 
       <h3>Download file</h3>
-      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files/{stem}/download</span></div>
-      <p>Serves the original <code>.txt</code> file for download.</p>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/files/{scope}/{stem}/download</span></div>
+      <p>Serves the original <code>.txt</code> file for download from either <code>global</code> or user scope.</p>
 
       <h3>Delete file</h3>
-      <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/files/{stem}</span></div>
+      <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/files/{scope}/{stem}</span></div>
       <p>Removes all traces of a document: the <code>.txt</code>, the <code>.json</code> index, the <code>.npy</code> embeddings, and the entries in <code>files_index.json</code> and <code>conflicts_index.json</code>.</p>
+
+      <h3>Conversations</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/conversations</span></div>
+      <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/conversations</span></div>
+      <div class="endpoint"><span class="method method-delete">DELETE</span><span class="endpoint-path">/conversations/{id}</span></div>
+      <p>Conversation persistence endpoints used by the chat UI for listing, creating, renaming, loading, and deleting chats.</p>
 
       <h3>Chat</h3>
       <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/chat</span></div>
-      <p>Main chat endpoint. Accepts a model name, message history, and stream flag. Runs the full RAG pipeline and streams the response back in <code>text/event-stream</code> format.</p>
+      <p>Main chat endpoint. Accepts a model name, message history, and stream flag. Runs safety screening, routing, retrieval, grounding, and the final response generation pipeline. Responses can be streamed in <code>text/event-stream</code> format.</p>
       <pre><code>{
   "model": "mistral:7b",
   "messages": [
@@ -1090,9 +1112,11 @@ data: {"text": "", "done": true}</code></pre>
       <p class="section-sub">Adding, updating and removing knowledge</p>
 
       <h3>Adding a document</h3>
-      <p>Open <code>http://localhost:5500/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically - no restart needed.</p>
+      <p>Open <code>http://localhost:8000/ui/upload.html</code>, drag and drop any <code>.txt</code> file. The server processes it automatically - no restart needed.</p>
       <p>During upload, Emma also checks the new RAG against the user's own documents and the visible global documents. If it finds likely contradictions, the upload page shows a warning panel and the indexed file keeps a persisted <code>Conflicts</code> badge.</p>
       <img class="doc-shot" src="assets/conflict.png" alt="Example of Emma detecting a possible inconsistency between uploaded RAG files">
+
+      <div class="callout"><strong>Permissions:</strong> <code>admin</code> can manage global and user-scoped RAGs, <code>user</code> can manage only their own <code>mine</code> RAGs, and <code>read_only</code> cannot access upload.</div>
 
       <div class="callout"><strong>Naming convention:</strong> Use underscores instead of spaces. <code>solar_panel.txt</code> not <code>solar panel.txt</code>. The upload endpoint sanitizes filenames automatically.</div>
 
@@ -1100,7 +1124,7 @@ data: {"text": "", "done": true}</code></pre>
       <p>Delete the existing file from the upload page, then re-upload the updated version. The system re-indexes it completely.</p>
 
       <h3>Manual descriptions</h3>
-      <p>The LLM generates descriptions automatically, but you can edit <code>files_index.json</code> manually. The server never overwrites existing descriptions - only fills in missing ones.</p>
+      <p>The LLM generates descriptions automatically, but you can edit <code>files_index.json</code> manually. The server only fills missing entries and now prunes orphaned entries for files that no longer exist.</p>
       <pre><code>{
   "baroque": "Wikipedia article about the Baroque artistic style, 17th-18th centuries",
   "contacts": "Company employee directory with phone numbers, emails and departments",
@@ -1150,7 +1174,7 @@ conflicts_index.json   ← persisted inconsistency warnings</code></pre>
         </div>
       </div>
 
-      <div class="callout"><strong>Good for:</strong> internal company documents, employee contacts, legal contracts, medical records, financial data, proprietary technical documentation — anything you wouldn't want on an external server.</div>
+      <div class="callout"><strong>Documentation scope:</strong> When maintaining project documentation, keep <code>README.md</code>, <code>ui/Docs.html</code>, and <code>AGENTS.md</code> aligned together.</div>
     </div>
 
   </div>

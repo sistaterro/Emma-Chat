@@ -795,11 +795,6 @@
           Users
           <span class="nav-badge" id="badge-users">4</span>
         </div>
-        <div class="nav-item" onclick="showPanel('workspaces')">
-          <span class="nav-icon">🗂️</span>
-          Workspaces
-          <span class="nav-badge" id="badge-ws">3</span>
-        </div>
         <div class="nav-item" onclick="showPanel('rags')">
           <span class="nav-icon">📄</span>
           Global RAGs
@@ -871,7 +866,6 @@
               <tr>
                 <th>User</th>
                 <th>Role</th>
-                <th>Workspace</th>
                 <th>Status</th>
                 <th>Last login</th>
                 <th></th>
@@ -889,7 +883,6 @@
                   </div>
                 </td>
                 <td><span class="role-badge role-admin">Admin</span></td>
-                <td>—</td>
                 <td><div class="status-cell"><div class="status-dot active"></div>Active</div></td>
                 <td>Today</td>
                 <td>
@@ -910,7 +903,6 @@
                   </div>
                 </td>
                 <td><span class="role-badge role-user">User</span></td>
-                <td>HR</td>
                 <td><div class="status-cell"><div class="status-dot active"></div>Active</div></td>
                 <td>Yesterday</td>
                 <td>
@@ -932,7 +924,6 @@
                   </div>
                 </td>
                 <td><span class="role-badge role-user">User</span></td>
-                <td>Engineering</td>
                 <td><div class="status-cell"><div class="status-dot active"></div>Active</div></td>
                 <td>2 days ago</td>
                 <td>
@@ -954,7 +945,6 @@
                   </div>
                 </td>
                 <td><span class="role-badge role-readonly">Read-only</span></td>
-                <td>Sales</td>
                 <td><div class="status-cell"><div class="status-dot disabled"></div>Disabled</div></td>
                 <td>2 weeks ago</td>
                 <td>
@@ -966,48 +956,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── WORKSPACES PANEL ── -->
-    <div id="panel-workspaces" class="panel">
-      <div class="page-header">
-        <div class="page-title">Workspaces</div>
-        <div class="header-actions">
-          <button class="btn-primary" onclick="openModal('modal-new-ws')">+ New Workspace</button>
-        </div>
-      </div>
-      <div id="content">
-        <div class="ws-grid">
-          <div class="ws-card">
-            <span class="ws-icon">🏢</span>
-            <div class="ws-name">Human Resources</div>
-            <div class="ws-meta">
-              <span>3 users</span>
-              <span>4 RAGs</span>
-            </div>
-          </div>
-          <div class="ws-card">
-            <span class="ws-icon">⚙️</span>
-            <div class="ws-name">Engineering</div>
-            <div class="ws-meta">
-              <span>5 users</span>
-              <span>7 RAGs</span>
-            </div>
-          </div>
-          <div class="ws-card">
-            <span class="ws-icon">💼</span>
-            <div class="ws-name">Sales</div>
-            <div class="ws-meta">
-              <span>4 users</span>
-              <span>3 RAGs</span>
-            </div>
-          </div>
-          <div class="ws-card ws-add" onclick="openModal('modal-new-ws')">
-            <span class="ws-add-icon">+</span>
-            <span>New workspace</span>
-          </div>
         </div>
       </div>
     </div>
@@ -1175,37 +1123,9 @@
         <option value="admin">Admin</option>
       </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">Workspace</label>
-      <select class="form-select">
-        <option value="">— No workspace —</option>
-        <option value="hr">Human Resources</option>
-        <option value="engineering">Engineering</option>
-        <option value="sales">Sales</option>
-      </select>
-    </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modal-new-user')">Cancel</button>
       <button class="btn-primary" onclick="createUser()">Create user</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── MODAL: NEW WORKSPACE ── -->
-<div class="modal-overlay" id="modal-new-ws">
-  <div class="modal">
-    <div class="modal-title">New Workspace</div>
-    <div class="form-group">
-      <label class="form-label">Name</label>
-      <input class="form-input" type="text" placeholder="e.g. Finance, Legal, Support">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Icon</label>
-      <input class="form-input" type="text" placeholder="Emoji e.g. 💰 ⚖️ 🎧" maxlength="2">
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('modal-new-ws')">Cancel</button>
-      <button class="btn-primary" onclick="createWorkspace()">Create workspace</button>
     </div>
   </div>
 </div>
@@ -1266,11 +1186,6 @@
   function createUser() {
     closeModal('modal-new-user');
     showToast('User created successfully', 'success');
-  }
-
-  function createWorkspace() {
-    closeModal('modal-new-ws');
-    showToast('Workspace created', 'success');
   }
 
   function logout() {
@@ -1393,7 +1308,6 @@
               </div>
             </td>
             <td><span class="role-badge ${roleClass(u.role)}">${formatRole(u.role)}</span></td>
-            <td>—</td>
             <td><div class="status-cell"><div class="status-dot ${activeClass}"></div>${activeLabel}</div></td>
             <td>${escHtml(formatLastLogin(u.last_login_at))}</td>
             <td>
@@ -1581,11 +1495,6 @@
         await loadSystemStatus();
         showToast(`Deleted ${stem}`, 'success');
       }
-    };
-
-    window.createWorkspace = function createWorkspace() {
-      closeModal('modal-new-ws');
-      showToast('Workspaces remain mock for now', '');
     };
 
     window.logout = async function logout() {

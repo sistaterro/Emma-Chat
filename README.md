@@ -1,6 +1,6 @@
 # Emma - Private AI with RAG
 
-A fully local, private AI chat system with Retrieval-Augmented Generation (RAG). Upload your own documents and chat with them - no data ever leaves your machine.
+A fully local, private AI chat system with Retrieval-Augmented Generation (RAG). Upload your own documents, manage user access, and chat with grounded local knowledge without sending data to external services.
 
 ![Home](assets/home.png)
 
@@ -27,6 +27,14 @@ It also includes:
 - **Multi-RAG routing** so comparative questions can use more than one relevant document at once
 - **Manipulation-resistance checks** to detect pressure, false authority, exception-seeking, and policy-bypass attempts
 - **Per-message JSON audit logs** with safety scores, grounding metrics, selected files, and final response tags
+- **Role-based access control** with `admin`, `user`, and `read_only`
+- **Admin user management** for creating users, changing roles, resetting passwords, disabling accounts, and deleting users
+
+Current role model:
+
+- `admin`: can manage users and all RAGs, including global RAGs and user-owned RAGs
+- `user`: can use chat and manage their own `mine` RAGs
+- `read_only`: can use chat only and cannot access upload
 
 What makes Emma different from a typical local chat-with-docs app is that it does not assume your RAG library is internally consistent just because the files are local. Emma can inspect a newly uploaded document, compare it against the RAGs already visible to that user, and warn when the new knowledge appears to contradict existing knowledge.
 
@@ -132,18 +140,19 @@ Double-click `run.bat` or run it from the terminal:
 run.bat
 ```
 
+`run.bat` now validates the local virtual environment, checks core Python dependencies, warns if Ollama is not reachable, waits for the backend to become available, and only then opens the browser.
+
 ### Mac / Linux
 
 ```bash
 source .venv/bin/activate
-uvicorn server:app --reload --port 8000 &
-cd ui && python -m http.server 5500
+uvicorn server:app --reload --port 8000
 ```
 
 Then open your browser at:
 
 ```text
-http://localhost:5500
+http://localhost:8000/ui/login.html
 ```
 
 ---
@@ -153,24 +162,45 @@ http://localhost:5500
 ```text
 emma-rag/
 |-- server.py           # FastAPI backend - RAG pipeline
+|-- prompts.py          # Canonical prompt builders
 |-- run.bat             # Windows launcher
 |-- requirements.txt    # Python dependencies
+|-- emma.db             # SQLite database (users, sessions, chats, messages)
 |-- files/              # User/global .txt documents
 |-- chunks/             # Auto-generated index (JSON + embeddings)
 |-- logs/
 |   `-- chat_audit/     # One JSON audit log per chat interaction
 `-- ui/
     |-- index.html              # Homepage
+    |-- login.html              # Authentication
     |-- chat.html               # Emma (light theme)
-    |-- chat_evil_emma.html     # Evil Emma (dark theme)
+    |-- admin.html              # Admin panel
+    |-- docs.html               # Built-in project documentation
     `-- upload.html             # Document manager
 ```
 
 ---
 
+## Core routes
+
+- `http://localhost:8000/ui/login.html` - login screen
+- `http://localhost:8000/ui/index.html` - main home
+- `http://localhost:8000/ui/chat.html` - chat UI
+- `http://localhost:8000/ui/upload.html` - RAG management
+- `http://localhost:8000/ui/admin.html` - admin panel
+- `http://localhost:8000/ui/docs.html` - built-in documentation
+
+When someone asks to "update documentation" in this project, the expected scope is:
+
+- `README.md`
+- `ui/Docs.html`
+- `AGENTS.md`
+
+---
+
 ## Adding documents
 
-1. Open `http://localhost:5500/upload.html`
+1. Open `http://localhost:8000/ui/upload.html`
 2. Drag and drop any `.txt` file
 3. The server automatically:
    - Chunks the document
@@ -182,6 +212,12 @@ emma-rag/
 No restart required. Files are available immediately after indexing.
 
 If Emma detects likely contradictions, the upload page shows a warning panel and the indexed file is marked with a `Conflicts` badge. These warnings are persisted per document.
+
+Permissions:
+
+- `admin` can upload global RAGs and manage all stored RAGs
+- `user` can upload and delete only their own `mine` RAGs
+- `read_only` cannot access upload
 
 ---
 
@@ -267,6 +303,14 @@ Emma is designed for private use with sensitive data:
 - No telemetry, no analytics, no external calls
 
 Inconsistency detection and safety analysis also run locally through Ollama. By default Emma prefers `qwen2.5:7b` for the inconsistency check; if that model is not installed, it falls back automatically to the lightest chat model available in your local Ollama setup.
+
+---
+
+## Technical debt currently accepted
+
+- `first use` onboarding and forced password change for the bootstrap admin are still pending
+- `server.py` remains intentionally monolithic for now
+- `emma.db` often reflects local working state and should not be committed casually
 
 ---
 

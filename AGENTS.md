@@ -146,8 +146,14 @@ Recommended workflow:
 
 - use the local `.venv`;
 - start with `run.bat` on Windows;
+- run automated smoke tests with:
+  - `.\.venv\Scripts\python.exe -m unittest discover -s tests`
 - validate quick syntax with:
-  - `python -m py_compile server.py prompts.py`
+  - `.\.venv\Scripts\python.exe -m py_compile server.py prompts.py`
+
+Current automated tests:
+
+- `tests/test_permissions.py` covers role-based backend restrictions for `read_only` users and global RAG management by non-admin users. It uses a temporary SQLite database and does not modify `emma.db`.
 
 Useful manual smoke tests after changes:
 

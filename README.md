@@ -105,7 +105,7 @@ ollama list
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/emma-rag.git
+git clone https://github.com/sistaterro/Emma-Chat.git
 cd emma-rag
 ```
 
